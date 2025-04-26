@@ -50,8 +50,6 @@ Messages exchanged between client and server follow this structure:
 Planned enhancements:
 
 - Full server-side room-based message routing
-- Authentication and authorization systems
-- Moderation tools (mute, kick, ban)
 - Private messaging (direct user-to-user communication)
 - Docker containerization for streamlined deployment
 
