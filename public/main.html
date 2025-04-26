@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Chat Test</title>
+    <style>
+      body { font-family: sans-serif; max-width: 600px; margin: 20px auto; }
+      #messages { border:1px solid #ccc; height:300px; overflow:auto; padding:5px; margin-bottom:10px; }
+      #controls { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+      #controls input { flex: 1; padding:4px; }
+      #controls button { padding:4px 8px; }
+      #type-buttons { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+      #type-buttons button { padding: 4px 8px; }
+      .active-type { background-color: #4CAF50; color: white; }
+      .disabled { opacity: 0.5; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <h2>WebSocket Chat Test</h2>
+
+    <div id="messages"></div>
+
+    <div id="type-buttons">
+        <button id="UserBtn" onclick="setType('User')">User</button>
+        <button id="AdminBtn" onclick="setType('Admin')">Admin</button>
+        <button id="InfoBtn" onclick="setType('Info')">Info</button>
+        <button id="ServerBtn" onclick="setType('Server')">Server</button>
+    </div>
+
+    <div id="controls">
+        <input type="text" id="usernameInput" placeholder="Username" value="Anonymous" />
+        <input type="number" id="levelInput" placeholder="Level" value="1" min="1" style="max-width:80px;" />
+        <input type="text" id="roomIdInput" placeholder="Room ID" value="lobby" style="max-width:80px;" />
+    </div>
+
+    <div id="controls">
+        <input type="text" id="messageInput" placeholder="Enter message…" />
+        <button id="sendButton" onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        const WS_URL = 'wss://crack-aware-stud.ngrok-free.app';
+
+        const MessageType = {
+            User: "User",
+            Admin: "Admin",
+            Info: "Information",
+            Server: "Server"
+        };
+
+        let currentType = MessageType.User;
+
+        const ws = new WebSocket(WS_URL);
+        const messagesDiv    = document.getElementById('messages');
+        const messageInput   = document.getElementById('messageInput');
+        const usernameInput  = document.getElementById('usernameInput');
+        const levelInput     = document.getElementById('levelInput');
+        const roomIdInput    = document.getElementById('roomIdInput');
+        const sendButton     = document.getElementById('sendButton');
+
+        ws.onopen = () => {
+            logMessage('[System] Connected to chat server.');
+            enableSendButton(true);
+        };
+
+        ws.onmessage = (evt) => {
+            let data;
+            try {
+                data = JSON.parse(evt.data);
+            } catch {
+                console.error('Invalid JSON:', evt.data);
+                return;
+            }
+
+            switch (data.type) {
+                case MessageType.Server:
+                    logMessage(`[Server] ${data.message}`);
+                    break;
+                case MessageType.Admin:
+                    logMessage(`[ADMIN]: ${data.username} ${data.message}`);
+                    break;
+                case MessageType.Info:
+                    logMessage(`[Information] ${data.message}`);
+                    break;
+                case MessageType.User:
+                default:
+                    logMessage(`[${data.username} | Lvl ${data.level}] ${data.message}`);
+                    break;
+            }
+        };
+
+        ws.onclose = () => {
+            logMessage('[System] Disconnected from chat server.');
+            enableSendButton(false);
+        };
+
+        ws.onerror = (err) => {
+            console.error('WebSocket Error:', err);
+            enableSendButton(false);
+        };
+
+        function sendMessage() {
+            const text     = messageInput.value.trim();
+            const username = usernameInput.value.trim() || "Anonymous";
+            const level    = parseInt(levelInput.value, 10) || 1;
+            const roomId   = roomIdInput.value.trim() || "lobby";
+
+            if (!text || ws.readyState !== WebSocket.OPEN) return;
+
+            const chatMsg = {
+                uid: '',
+                roomId: roomId,
+                username: username,
+                level: level,
+                message: text,
+                type: currentType,
+                timestamp: Math.floor(Date.now() / 1000)
+            };
+
+            ws.send(JSON.stringify(chatMsg));
+            messageInput.value = '';
+        }
+
+        function setType(type) {
+            if (MessageType[type]) {
+                currentType = MessageType[type];
+                highlightActiveType(type);
+                logMessage(`[System] Switched message type to: ${currentType}`);
+            }
+        }
+
+        function highlightActiveType(type) {
+            for (const key in MessageType) {
+                const btn = document.getElementById(`${key}Btn`);
+                if (btn) {
+                    if (key === type) {
+                        btn.classList.add('active-type');
+                    } else {
+                        btn.classList.remove('active-type');
+                    }
+                }
+            }
+        }
+
+        function enableSendButton(enable) {
+            if (enable) {
+                sendButton.classList.remove('disabled');
+                sendButton.disabled = false;
+            } else {
+                sendButton.classList.add('disabled');
+                sendButton.disabled = true;
+            }
+        }
+
+        function logMessage(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            messagesDiv.appendChild(p);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        messageInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                sendMessage();
+                e.preventDefault();
+            }
+        });
+
+        highlightActiveType('User');
+    </script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+In order to start server open server.js and use 'node .\server.js' this will fire server on port 8080.
+Then start port forwarding using ngrok. Use this line in cmd 'ngrok http 8080 --domain=crack-aware-stud.ngrok-free.app' this will fire ngrok and port forwarding will start
