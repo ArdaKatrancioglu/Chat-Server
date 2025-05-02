@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Chat Test</title>
+    <style>
+      body { font-family: sans-serif; max-width: 600px; margin: 20px auto; }
+      #messages { border:1px solid #ccc; height:300px; overflow:auto; padding:5px; margin-bottom:10px; }
+      #controls { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+      #controls input { flex: 1; padding:4px; }
+      #controls button { padding:4px 8px; }
+      #type-buttons { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+      #type-buttons button { padding: 4px 8px; }
+      .active-type { background-color: #4CAF50; color: white; }
+      .disabled { opacity: 0.5; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <h2>WebSocket Chat Test</h2>
+
+    <div id="messages"></div>
+
+    <div id="type-buttons">
+        <button id="UserBtn" onclick="setType('User')">User</button>
+        <button id="AdminBtn" onclick="setType('Admin')">Admin</button>
+        <button id="InfoBtn" onclick="setType('Info')">Info</button>
+        <button id="ServerBtn" onclick="setType('Server')">Server</button>
+    </div>
+
+    <div id="controls">
+        <input type="text" id="usernameInput" placeholder="Username" value="Anonymous" />
+        <input type="number" id="levelInput" placeholder="Level" value="1" min="1" style="max-width:80px;" />
+        <input type="text" id="roomIdInput" placeholder="Room ID" value="lobby" style="max-width:80px;" />
+    </div>
+
+    <div id="controls">
+        <input type="text" id="messageInput" placeholder="Enter message…" />
+        <button id="sendButton" onclick="sendMessage()">Send</button>
+    </div>
+    <script src="chat.js"></script>
+</body>
+</html>
