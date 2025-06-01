@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat World</title>
+  <link rel="stylesheet" href="/home.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <header class="topnav">
+    <button class="menu-toggle" id="menuToggle">☰</button>
+    <div class="logo">CHAT WORLD</div>
+    <div class="nav-buttons">
+      <a href="#" class="nav-btn"><i class="fas fa-sign-in-alt"></i> Login</a>
+      <a href="#" class="nav-btn"><i class="fas fa-user-plus"></i> Register</a>
+    </div>
+  </header>
+
+  <nav id="sidebar" class="sidebar">
+    <a href="/">🏠 Home</a>
+    <a href="/api/chat">💬 Chat</a>
+    <a href="#">📄 About</a>
+    <a href="#">🛠 Features</a>
+    <a href="#">🎮 Servers</a>
+  </nav>
+
+  <div id="loginBox">
+    <h3>Login</h3>
+    <input type="text" id="loginUser" placeholder="Username">
+    <input type="password" id="loginPass" placeholder="Password">
+    <button onclick="login()">Login</button>
+  </div>  
+
+  <section class="hero">
+    <div class="hero-overlay">
+      <h1>Welcome to Chat World</h1>
+      <p>Real-time conversations with friends and communities.</p>
+      <a href="/chat" class="cta-button">Enter Chat</a>
+    </div>
+  </section>
+
+  <section class="info-section dark">
+    <h2>Live Server Status</h2>
+    <div class="status-boxes">
+      <div class="status-box green">PC Online: 3 Players</div>
+      <div class="status-box gray">Mobile Online: 1 Player</div>
+    </div>
+  </section>
+
+  <section class="card-section">
+    <h2>About</h2>
+    <p>Founded in 2025, Chat World is a project driven by passion to recreate TDU-style real-time experiences.</p>
+    <p>Our mission is to deliver smooth, modern and modular chat solutions for developers and players alike.</p>
+  </section>  
+
+  <section class="info-section light">
+    <h2>About Chat World</h2>
+    <p>This chat server is designed to provide smooth, stable, and fun conversations with advanced room features and modern UI.</p>
+  </section>
+
+  <section class="info-section dark">
+    <h2>Explore Features</h2>
+    <p>✔ Custom chat rooms<br>✔ Admin tools<br>✔ Real-time messaging<br>✔ Dark mode support<br>✔ WebSocket-powered performance</p>
+  </section>
+
+  <section class="info-section light">
+    <h2>Get Started</h2>
+    <p>Simply click below to launch the web chat and start connecting instantly.</p>
+    <a href="/chat" class="cta-button">Launch Chat</a>
+  </section>
+
+  <section class="info-section dark">
+    <h2>Need Help?</h2>
+    <p>Join our Discord server or visit the FAQ page to find answers or ask the community.</p>
+    <a href="#" class="cta-button">Join Discord</a>
+    <a href="#" class="cta-button">FAQ</a>
+  </section>
+
+  <footer class="footer">
+    <p>© 2025 Chat World — Inspired by TDU World</p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const menuBtn = document.getElementById('menuToggle');
+      const sidebar = document.getElementById('sidebar');
+      menuBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+      });
+    });
+  </script>
+
+    <script src="/home.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyAiSuf6QL9Wu-P02yCpjR2OTktb-mkm9uY",
+        authDomain: "suevical3d.firebaseapp.com",
+        databaseURL: "https://suevical3d-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "suevical3d",
+        storageBucket: "suevical3d.firebasestorage.app",
+        messagingSenderId: "803029496727",
+        appId: "1:803029496727:web:70fe0c27b8e845a0d4cad2"
+      };
+      firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+    </script>    
+</body>
+</html>
