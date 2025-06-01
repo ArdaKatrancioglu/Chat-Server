@@ -47,18 +47,20 @@ app.post('/api/auth', express.json(), (req, res) => {
 
 app.post('/api/firebase-auth', express.json(), async (req, res) => {
     const { idToken } = req.body;
-  
+
     try {
-      const decoded = await admin.auth().verifyIdToken(idToken); // Firebase token doğrula
+        console.log("Incoming auth request body:", req.body);
+        const decoded = await admin.auth().verifyIdToken(idToken); // Firebase token doğrula
   
-      const token = uuidv4(); // geçici WS token üret
-      validKeys.add(token);
-      setTimeout(() => validKeys.delete(token), 5 * 60 * 1000);
+        const token = uuidv4(); // geçici WS token üret
+        validKeys.add(token);
+        setTimeout(() => validKeys.delete(token), 5 * 60 * 1000);
   
-      res.json({ token }); // frontende gönder
-    } catch (e) {
-      console.error("Auth error:", e);
-      res.status(401).json({ error: 'Unauthorized' });
+        res.json({ token }); // frontende gönder
+    } 
+    catch (e) {
+        console.error("Auth error:", e);
+        res.status(401).json({ error: 'Unauthorized' });
     }
 });
 
