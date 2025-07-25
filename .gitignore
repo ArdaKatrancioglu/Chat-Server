@@ -1,5 +1,7 @@
 # Ignore Firebase service account key
 server/serviceAccountKey.json
 
+server/README.md
+
 # Ignore logs folder inside /server
 server/logs/
