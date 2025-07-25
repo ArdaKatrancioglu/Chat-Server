@@ -1,0 +1,21 @@
+{
+    "chestId": "gem_chest",
+    "price": 1,
+    "commonChance": 0,
+    "uncommonChance": 0,
+    "rareChance": 0,
+    "epicChance": 0,
+    "legendaryChance": 100,
+    "skins": {
+        "common": [],
+        "uncommon": [],
+        "rare": [],
+        "epic": [],
+        "legendary": [
+            694653429,
+            53406055,
+            1720827394,
+            1049227189
+        ]
+    }
+}

@@ -1,0 +1,24 @@
+{
+    "chestId": "glitter_chest",
+    "price": 399,
+    "commonChance": 0,
+    "uncommonChance": 0,
+    "rareChance": 100,
+    "epicChance": 0,
+    "legendaryChance": 0,
+    "skins": {
+        "common": [],
+        "uncommon": [],
+        "rare": [
+            1979060038,
+            1870338368,
+            1862655122,
+            1093300944,
+            423764648,
+            1986914195,
+            659145099
+        ],
+        "epic": [],
+        "legendary": []
+    }
+}

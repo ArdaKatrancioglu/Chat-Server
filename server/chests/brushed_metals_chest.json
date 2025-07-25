@@ -1,0 +1,28 @@
+{
+    "chestId": "brushed_metals_chest",
+    "price": 275,
+    "commonChance": 0,
+    "uncommonChance": 0,
+    "rareChance": 0,
+    "epicChance": 60,
+    "legendaryChance": 40,
+    "skins": {
+        "common": [],
+        "uncommon": [],
+        "rare": [],
+        "epic": [
+            1568100411,
+            569613749,
+            1816348479,
+            687016418,
+            333171451,
+            1357782950,
+            2106157471,
+            8064155
+        ],
+        "legendary": [
+            72793005,
+            1928309674
+        ]
+    }
+}

@@ -5,12 +5,14 @@ const initWebSocket = require('./chat_server');
 const admin = require('firebase-admin');
 const serviceAccount = require('./serviceAccountKey.json');
 
-const PORT = 8080;
-const app = express();
-
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
 });
+
+const chestApi = require('./chest_api');
+
+const PORT = 8080;
+const app = express();
 
 // Serve static pages
 app.use('/chat', express.static(path.join(__dirname, '..', 'public', 'chat')));
@@ -63,6 +65,8 @@ app.post('/api/firebase-auth', express.json(), async (req, res) => {
         res.status(401).json({ error: 'Unauthorized' });
     }
 });
+
+app.use('/api/chest', chestApi);
 
 const server = http.createServer(app);
 initWebSocket(server, '/api/chat', validKeys);
