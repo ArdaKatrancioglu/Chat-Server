@@ -23,6 +23,7 @@ async function getBalanceFromFirestore(uid) {
 async function addSkinToInventory(uid, skinId, skinData, patternVector, ownerName) {
   const inventoryDoc = {
     skinId,
+    onlyMelee: skinData.onlyMelee,
     skinName: skinData.skinName,
     skinDescription: skinData.skinDescription,
     ownerId: uid,
@@ -84,6 +85,7 @@ router.post('/:chestId', express.json(), async (req, res) => {
     seleniumCoins: admin.firestore.FieldValue.increment(-chestData.price)
   });
 
+
   // Rasgele rarity seçimi
   const roll = Math.random() * 100;
   let rarity = 'common';
@@ -108,11 +110,19 @@ router.post('/:chestId', express.json(), async (req, res) => {
   const candidates = chestData.skins[rarity];
   const selectedSkinId = candidates[Math.floor(Math.random() * candidates.length)];
 
+  if (selectedSkinId == undefined){
+    console.error("Skin data id is undefined! Mostly there is no " + rarity + " rare skins in chest! Bad setup!");
+    res.status(500).json("Skin data id is undefined! Mostly there is no " + rarity + " rare skins in chest! Bad setup! Fix it dumbass");
+    return;
+  }
+
   // skin_data.json'dan veri yükle
   let skinData = null;
   try {
+    //console.log("selectedSkinId:", selectedSkinId);
     const raw = JSON.parse(fs.readFileSync(skinDataPath));
     const entries = Array.isArray(raw.entries) ? raw.entries : [];
+    //console.log("entries sample:", entries[0]);
     const entry = entries.find(e => e.id === selectedSkinId.toString());
     skinData = entry?.data ?? null;
   } catch (err) {
@@ -120,7 +130,11 @@ router.post('/:chestId', express.json(), async (req, res) => {
   }
 
   // Server-side rastgele patternVector oluştur
-  const patternVector = [Math.random(), Math.random(), Math.random()];
+  const patternVector = [
+      randomStep(0.001),
+      randomStep(0.001),
+      randomStep(0.001)
+  ];
 
   // Envantere ekle
   let inventoryItem;
@@ -145,3 +159,7 @@ router.post('/:chestId', express.json(), async (req, res) => {
 });
 
 module.exports = router;
+
+function randomStep(step = 0.05) {
+    return Math.floor(Math.random() / step) * step;
+}
