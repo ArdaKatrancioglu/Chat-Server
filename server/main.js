@@ -4,6 +4,7 @@ const path = require('path');
 const initWebSocket = require('./chat_server');
 const admin = require('firebase-admin');
 const serviceAccount = require('./serviceAccountKey.json');
+const startNgrok = require('./ngrokRunner');
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
@@ -70,6 +71,8 @@ app.use('/api/chest', chestApi);
 
 const server = http.createServer(app);
 initWebSocket(server, '/api/chat', validKeys);
+
+startNgrok();
 
 server.listen(PORT, () => {
     console.log(`HTTP and WebSocket server running at http://localhost:${PORT}`);
