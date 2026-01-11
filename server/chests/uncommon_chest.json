@@ -1,0 +1,30 @@
+{
+    "chestId": "uncommon_chest",
+    "price": 200,
+    "commonChance": 0,
+    "uncommonChance": 50,
+    "rareChance": 30,
+    "epicChance": 15,
+    "legendaryChance": 50,
+    "skins": {
+        "common": [],
+        "uncommon": [
+            397350562,
+            789924824
+        ],
+        "rare": [
+            2054865985,
+            1574149981
+        ],
+        "epic": [
+            474164289,
+            581921286,
+            2010635267,
+            1845082448
+        ],
+        "legendary": [
+            1261381940,
+            438261702
+        ]
+    }
+}
