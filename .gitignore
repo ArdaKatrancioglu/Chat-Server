@@ -5,3 +5,6 @@ server/README.md
 
 # Ignore logs folder inside /server
 server/logs/
+
+# Ignore Node Modules
+node_modules
