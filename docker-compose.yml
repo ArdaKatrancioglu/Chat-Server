@@ -1,0 +1,11 @@
+services:
+  chat-server:
+    build: .
+    container_name: chat-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./server/logs:/app/server/logs
+      - ./server/chests:/app/server/chests
+      - ./server/skinData:/app/server/skinData
