@@ -9,3 +9,4 @@ services:
       - ./server/logs:/app/server/logs
       - ./server/chests:/app/server/chests
       - ./server/skinData:/app/server/skinData
+      - ./server/serviceAccountKey.json:/app/server/serviceAccountKey.json:ro
