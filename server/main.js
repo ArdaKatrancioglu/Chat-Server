@@ -72,7 +72,7 @@ app.use('/api/chest', chestApi);
 const server = http.createServer(app);
 initWebSocket(server, '/api/chat', validKeys);
 
-startNgrok();
+//startNgrok();
 
 server.listen(PORT, () => {
     console.log(`HTTP and WebSocket server running at http://localhost:${PORT}`);
