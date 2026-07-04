@@ -8,3 +8,7 @@ server/logs/
 
 # Ignore Node Modules
 node_modules
+
+# Local environment and build output
+.env
+dist

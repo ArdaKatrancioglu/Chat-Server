@@ -1,9 +1,22 @@
 {
+  "name": "chat-server-api",
+  "version": "1.0.0",
+  "description": "Node.js TypeScript backend API connected to MySQL.",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
   "dependencies": {
+    "dotenv": "^16.4.7",
     "express": "^5.1.0",
-    "firebase": "^11.6.1",
-    "firebase-admin": "^13.3.0",
-    "uuid": "^11.1.0",
-    "ws": "^8.18.1"
+    "mysql2": "^3.11.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.2"
   }
 }

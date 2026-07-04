@@ -1,65 +1,157 @@
-# Suevical 3D — Chat Server
+# Chat Server API
 
-A lightweight, scalable WebSocket server developed for **Suevical 3D**, enabling real-time communication between clients with room and message type support.
+Node.js + TypeScript backend API using Express and MySQL.
 
-## Features
+The database schema is defined in `database/migrations/001_init.sql` and keeps the ERD table and column names unchanged.
 
-- Real-time messaging with WebSocket
-- Support for user roles: `User`, `Admin`, `Information`, and `Server`
-- Basic room-based message filtering (handled client-side)
-- Heartbeat mechanism to detect and terminate inactive connections
-- Fully compatible with Unity, Web, and other WebSocket-compatible clients
-- Minimal, extensible, and production-ready
+## Setup
 
-## Prerequisites
+Install dependencies:
 
-- Node.js (v14.x or newer)
-- Ngrok (optional, for external public tunneling)
+```bash
+npm install
+```
 
-## Getting Started
+Create a local environment file:
 
-- Clone the repository and navigate into it
-- Install Node.js dependencies if needed
-- Start the server locally on port 8080
-- (Optional) Open your server to the internet using Ngrok
+```bash
+cp .env.example .env
+```
 
-## Server Overview
+Start MySQL:
 
-| File | Description |
-| :--- | :--- |
-| `server.js` | Core server logic: connection handling, message broadcasting, heartbeat monitoring |
+```bash
+docker compose up -d
+```
 
-The server listens on port **8080** and automatically accepts WebSocket connections.
+Run the SQL migration:
 
-## Data Model
+```bash
+docker compose exec -T mysql mysql -u chat_api -pchat_api_password chat_server < database/migrations/001_init.sql
+```
 
-Messages exchanged between client and server follow this structure:
+Start the API in development mode:
 
-| Field | Description |
-| :--- | :--- |
-| `uid` | Unique user identifier (optional) |
-| `roomId` | Logical room for message routing (string) |
-| `username` | Display name of the sender |
-| `level` | Sender's user level (integer) |
-| `message` | Content of the chat message |
-| `type` | Message classification: `User`, `Admin`, `Information`, `Server` |
-| `timestamp` | Message creation time (Unix epoch seconds) |
+```bash
+npm run dev
+```
 
-## Roadmap
+The API listens on `http://localhost:3000` by default.
 
-Planned enhancements:
+## Scripts
 
-- Full server-side room-based message routing
-- Private messaging (direct user-to-user communication)
-- Docker containerization for streamlined deployment
+```bash
+npm run dev
+npm run build
+npm start
+```
 
-## License
+## Example Requests
 
-This project is distributed under an open-source license.  
-Usage in both personal and commercial projects is permitted.  
-Attribution is appreciated but not required.
+Health:
 
-## About
+```bash
+curl http://localhost:3000/health
+```
 
-Developed by **Arda Katrancıoğlu**  
-for the **Suevical 3D** project.
+Create a user:
+
+```bash
+curl -X POST http://localhost:3000/users \
+  -H "Content-Type: application/json" \
+  -d '{"id":1,"username":"arda","email":"arda@example.com"}'
+```
+
+Get a user:
+
+```bash
+curl http://localhost:3000/users/1
+```
+
+Update a user:
+
+```bash
+curl -X PATCH http://localhost:3000/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{"username":"arda2"}'
+```
+
+Set user settings:
+
+```bash
+curl -X PUT http://localhost:3000/users/1/settings \
+  -H "Content-Type: application/json" \
+  -d '{"settings":{"volume":80,"language":"en"}}'
+```
+
+Set generic stats:
+
+```bash
+curl -X PUT http://localhost:3000/users/1/generic-stats \
+  -H "Content-Type: application/json" \
+  -d '{"created_at":"2026-07-05","last_online":"2026-07-05","xp":1200}'
+```
+
+Set play stats:
+
+```bash
+curl -X PUT http://localhost:3000/users/1/play-stats \
+  -H "Content-Type: application/json" \
+  -d '{"kills":10,"deaths":3,"matches_played":4,"wins":2,"losses":2,"damage_dealt":1500,"damage_taken":900,"healing_done":120,"headshots":4,"headshot_rate":0.4,"shots_fired":100,"shots_hit":38,"playtime_seconds":3600}'
+```
+
+Patch play stats:
+
+```bash
+curl -X PATCH http://localhost:3000/users/1/play-stats \
+  -H "Content-Type: application/json" \
+  -d '{"kills":11,"wins":3}'
+```
+
+Create a loadout:
+
+```bash
+curl -X POST http://localhost:3000/users/1/loadouts \
+  -H "Content-Type: application/json" \
+  -d '{"loadout_id":1,"slot_index":0,"primary_gun_id":100,"secondary_gun_id":101,"knife_id":200,"throwable_id":300}'
+```
+
+Create a user item:
+
+```bash
+curl -X POST http://localhost:3000/users/1/items \
+  -H "Content-Type: application/json" \
+  -d '{"item_id":100,"item_type":1,"acquired_at":"2026-07-05","first_owner_id":1}'
+```
+
+Create a weapon:
+
+```bash
+curl -X POST http://localhost:3000/weapons \
+  -H "Content-Type: application/json" \
+  -d '{"item_id":100,"weapon_id":"rifle_01","skin_id":10,"description":"Starter rifle","pattern_x":1,"pattern_y":2,"pattern_z":3}'
+```
+
+Create a melee item:
+
+```bash
+curl -X POST http://localhost:3000/melee \
+  -H "Content-Type: application/json" \
+  -d '{"item_id":200,"melee_id":"knife_01","skin_id":10,"description":"Starter knife","pattern_x":1,"pattern_y":2,"pattern_z":3}'
+```
+
+Create a throwable:
+
+```bash
+curl -X POST http://localhost:3000/throwables \
+  -H "Content-Type: application/json" \
+  -d '{"item_id":300,"throwable_id":"grenade_01","description":"Starter grenade"}'
+```
+
+Create a skin:
+
+```bash
+curl -X POST http://localhost:3000/skins \
+  -H "Content-Type: application/json" \
+  -d '{"skin_id":10,"material_name":1,"finish_name":2}'
+```
