@@ -1,8 +1,8 @@
 import type { RowDataPacket } from "mysql2";
 import { pool } from "../db/pool";
 import { AppError } from "../middleware/errorHandler";
-import { listUserItems } from "./items.service";
-import { listUserLoadouts } from "./loadouts.service";
+import { listHydratedUserItems } from "./items.service";
+import { listHydratedUserLoadouts } from "./loadouts.service";
 import { getUserSettings } from "./settings.service";
 import { getGenericStats, getPlayStats } from "./stats.service";
 import { getUserById } from "./users.service";
@@ -25,8 +25,8 @@ export async function getMeProfile(userId: string) {
     getUserSettings(userId),
     getGenericStats(userId),
     getPlayStats(userId),
-    listUserLoadouts(userId),
-    listUserItems(userId)
+    listHydratedUserLoadouts(userId),
+    listHydratedUserItems(userId)
   ]);
 
   return {

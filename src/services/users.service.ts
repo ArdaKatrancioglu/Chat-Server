@@ -22,6 +22,11 @@ export async function createUser(data: Record<string, unknown>): Promise<User> {
   return getUserById(id);
 }
 
+export async function listUsers(): Promise<User[]> {
+  const [rows] = await pool.execute<UserRow[]>("SELECT * FROM `USER` ORDER BY `id`");
+  return rows;
+}
+
 export async function getUserById(id: string): Promise<User> {
   const [rows] = await pool.execute<UserRow[]>("SELECT * FROM `USER` WHERE `id` = ? LIMIT 1", [id]);
   const user = rows[0];

@@ -1,10 +1,22 @@
 import { Router } from "express";
-import { protectUserCreateRoute, protectUserParamRoute } from "../middleware/auth";
-import { asyncHandler } from "../middleware/errorHandler";
-import { createUser, getUserById, updateUser } from "../services/users.service";
+import { canUseDevUserRoutes, protectUserCreateRoute, protectUserParamRoute } from "../middleware/auth";
+import { AppError, asyncHandler } from "../middleware/errorHandler";
+import { createUser, getUserById, listUsers, updateUser } from "../services/users.service";
 import { parseStringParam } from "./params";
 
 export const usersRouter = Router();
+
+usersRouter.get(
+  "/users",
+  asyncHandler(async (req, res) => {
+    if (!canUseDevUserRoutes(req)) {
+      throw new AppError(403, "Forbidden");
+    }
+
+    const users = await listUsers();
+    res.json({ users });
+  })
+);
 
 usersRouter.post(
   "/users",

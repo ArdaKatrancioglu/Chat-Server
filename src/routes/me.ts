@@ -1,11 +1,16 @@
 import { Router, type Request } from "express";
 import { getAuthUid, requireAuth } from "../middleware/auth";
 import { asyncHandler } from "../middleware/errorHandler";
-import { createUserItem, deleteUserItem, listUserItems } from "../services/items.service";
+import {
+  createUserItem,
+  deleteUserItem,
+  getHydratedUserItem,
+  listHydratedUserItems
+} from "../services/items.service";
 import {
   createUserLoadout,
   deleteUserLoadout,
-  listUserLoadouts,
+  listHydratedUserLoadouts,
   updateUserLoadout
 } from "../services/loadouts.service";
 import { ensureUserSynced, getMeProfile } from "../services/me.service";
@@ -104,8 +109,8 @@ meRouter.get(
   "/me/loadouts",
   asyncHandler(async (req, res) => {
     const userId = await getSyncedAuthUid(req);
-    const loadouts = await listUserLoadouts(userId);
-    res.json(loadouts);
+    const loadouts = await listHydratedUserLoadouts(userId);
+    res.json({ loadouts });
   })
 );
 
@@ -142,8 +147,18 @@ meRouter.get(
   "/me/items",
   asyncHandler(async (req, res) => {
     const userId = await getSyncedAuthUid(req);
-    const items = await listUserItems(userId);
-    res.json(items);
+    const items = await listHydratedUserItems(userId);
+    res.json({ items });
+  })
+);
+
+meRouter.get(
+  "/me/items/:itemId",
+  asyncHandler(async (req, res) => {
+    const userId = await getSyncedAuthUid(req);
+    const itemId = parseIntParam(req.params.itemId, "itemId");
+    const item = await getHydratedUserItem(userId, itemId);
+    res.json(item);
   })
 );
 

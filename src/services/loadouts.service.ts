@@ -1,8 +1,9 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "../db/pool";
 import { AppError } from "../middleware/errorHandler";
-import type { UserLoadout } from "../types/db";
+import type { HydratedUserLoadout, UserLoadout } from "../types/db";
 import { toSqlValue } from "../types/sql";
+import { getHydratedUserItem } from "./items.service";
 
 type LoadoutRow = UserLoadout & RowDataPacket;
 
@@ -12,7 +13,8 @@ const loadoutColumns = [
   "primary_gun_id",
   "secondary_gun_id",
   "knife_id",
-  "throwable_id"
+  "throwable_id",
+  "agent_id"
 ];
 
 export async function listUserLoadouts(userId: string): Promise<UserLoadout[]> {
@@ -22,6 +24,46 @@ export async function listUserLoadouts(userId: string): Promise<UserLoadout[]> {
   );
 
   return rows;
+}
+
+async function hydrateLoadout(loadout: UserLoadout): Promise<HydratedUserLoadout> {
+  const hydrate = async (itemId: number | null) => {
+    if (itemId === null) {
+      return null;
+    }
+
+    try {
+      return await getHydratedUserItem(loadout.user_id, itemId);
+    } catch (error) {
+      if (error instanceof AppError && error.statusCode === 404) {
+        return null;
+      }
+
+      throw error;
+    }
+  };
+
+  const [primaryGun, secondaryGun, knife, throwable, agent] = await Promise.all([
+    hydrate(loadout.primary_gun_id),
+    hydrate(loadout.secondary_gun_id),
+    hydrate(loadout.knife_id),
+    hydrate(loadout.throwable_id),
+    hydrate(loadout.agent_id)
+  ]);
+
+  return {
+    ...loadout,
+    primary_gun: primaryGun,
+    secondary_gun: secondaryGun,
+    knife,
+    throwable,
+    agent
+  };
+}
+
+export async function listHydratedUserLoadouts(userId: string): Promise<HydratedUserLoadout[]> {
+  const loadouts = await listUserLoadouts(userId);
+  return Promise.all(loadouts.map((loadout) => hydrateLoadout(loadout)));
 }
 
 export async function getUserLoadout(userId: string, loadoutId: number): Promise<UserLoadout> {
@@ -47,7 +89,7 @@ export async function createUserLoadout(
 
   const values = loadoutColumns.map((column) => toSqlValue(data[column]));
   await pool.execute(
-    "INSERT INTO `USER_LOADOUT` (`user_id`, `loadout_id`, `slot_index`, `primary_gun_id`, `secondary_gun_id`, `knife_id`, `throwable_id`) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO `USER_LOADOUT` (`user_id`, `loadout_id`, `slot_index`, `primary_gun_id`, `secondary_gun_id`, `knife_id`, `throwable_id`, `agent_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     [userId, ...values]
   );
 

@@ -13,6 +13,7 @@ The database schema stays based on the ERD tables:
 - `WEAPON`
 - `THROWABLE`
 - `MELEE`
+- `AGENT`
 - `SKIN`
 
 Firebase Authentication is the source of identity. `USER.id` and every `user_id` column use the Firebase UID string after migration `002_firebase_uid_and_sync_ready.sql`.
@@ -42,6 +43,7 @@ Apply migrations in PowerShell:
 ```powershell
 Get-Content .\database\migrations\001_init.sql | docker exec -i chat-server-mysql mysql -u chat_api -pchat_api_password chat_server
 Get-Content .\database\migrations\002_firebase_uid_and_sync_ready.sql | docker exec -i chat-server-mysql mysql -u chat_api -pchat_api_password chat_server
+Get-Content .\database\migrations\003_agents_and_hydrated_inventory.sql | docker exec -i chat-server-mysql mysql -u chat_api -pchat_api_password chat_server
 ```
 
 Start the backend:
@@ -95,6 +97,10 @@ Sync creates the current authenticated user and base template data if missing:
 - five default `USER_LOADOUT` rows
 - vanilla `SKIN` with `skin_id = 0`
 - one owned `WEAPON` instance for each default weapon
+- one owned `MELEE` instance for `Default CT`
+- owned `THROWABLE` instances for `grenade` and `impact-grenade`
+- one owned `AGENT` instance for `default`
+- default loadout assignments for M4A1, 45 ACP, Default CT, Grenade, and Default Agent
 
 The endpoint is idempotent:
 
@@ -184,11 +190,130 @@ Invoke-RestMethod -Uri http://localhost:3000/me/loadouts -Headers $headers
 
 Expected after `POST /auth/sync`:
 
-- `/me/items` returns the default weapon instances.
+- `/me/items` returns hydrated default weapon, melee, throwable, and agent instances.
 - `/me/settings` returns `{}` in the `settings` field.
 - `/me/play-stats` returns zeroed stats.
-- `/me/loadouts` returns five default loadouts.
+- `/me/loadouts` returns five default loadouts with default item IDs assigned.
 - `SKIN` contains vanilla skin id `0`.
+
+## Postman Checks
+
+Use this local development header on protected requests:
+
+```http
+X-Dev-User-Id: local-dev-user
+```
+
+### 1. Sync
+
+`POST http://localhost:3000/auth/sync`
+
+Headers:
+
+```http
+X-Dev-User-Id: local-dev-user
+Content-Type: application/json
+```
+
+Body:
+
+```json
+{
+  "username": "Arda",
+  "email": "arda@test.com"
+}
+```
+
+Expected:
+
+- user exists
+- settings exists
+- stats exist
+- five loadouts exist
+- vanilla skin exists
+- default weapons exist
+- `Default CT` exists
+- `Grenade` exists
+- `Impact Grenade` exists
+- `Default Agent` exists
+- loadouts have M4A1, 45 ACP, Default CT, Grenade, and Default Agent assigned
+
+### 2. Current User
+
+`GET http://localhost:3000/me`
+
+Expected: returns complete current user data.
+
+### 3. Hydrated Inventory
+
+`GET http://localhost:3000/me/items`
+
+Expected: returns:
+
+```json
+{
+  "items": [
+    {
+      "user_id": "local-dev-user",
+      "item_id": 123,
+      "item_type": 1,
+      "acquired_at": "2026-07-05",
+      "first_owner_id": "local-dev-user",
+      "kind": "weapon",
+      "details": {
+        "item_id": 123,
+        "weapon_id": "M4A1",
+        "skin_id": 0,
+        "description": "Classic automatic rifle with balanced all-around performance.",
+        "pattern_x": 0,
+        "pattern_y": 0,
+        "pattern_z": 0
+      }
+    }
+  ]
+}
+```
+
+The same response includes melee, throwable, and agent items with `kind` values of `melee`, `throwable`, and `agent`.
+
+### 4. Loadouts
+
+`GET http://localhost:3000/me/loadouts`
+
+Expected: returns five loadouts with default item IDs assigned. Loadout rows include:
+
+```json
+{
+  "user_id": "local-dev-user",
+  "loadout_id": 0,
+  "slot_index": 0,
+  "primary_gun_id": 123,
+  "secondary_gun_id": 124,
+  "knife_id": 125,
+  "throwable_id": 126,
+  "agent_id": 127
+}
+```
+
+### 5. User Listing
+
+`GET http://localhost:3000/users`
+
+Expected in development:
+
+```json
+{
+  "users": [
+    {
+      "id": "local-dev-user",
+      "username": "Arda",
+      "email": "arda@test.com"
+    }
+  ]
+}
+```
+
+Expected in production: `403` unless an admin role system is added later.
 
 ## Existing Development Routes
 

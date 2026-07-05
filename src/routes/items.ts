@@ -2,14 +2,17 @@ import { Router } from "express";
 import { protectUserParamRoute } from "../middleware/auth";
 import { asyncHandler } from "../middleware/errorHandler";
 import {
+  createAgent,
   createMelee,
   createThrowable,
   createUserItem,
   createWeapon,
   deleteUserItem,
+  getAgentByItemId,
   getMeleeByItemId,
   getThrowableByItemId,
   getWeaponByItemId,
+  listAgents,
   listMelee,
   listThrowables,
   listUserItems,
@@ -122,5 +125,30 @@ itemsRouter.get(
     const itemId = parseIntParam(req.params.itemId, "itemId");
     const throwable = await getThrowableByItemId(itemId);
     res.json(throwable);
+  })
+);
+
+itemsRouter.get(
+  "/agents",
+  asyncHandler(async (_req, res) => {
+    const agents = await listAgents();
+    res.json(agents);
+  })
+);
+
+itemsRouter.post(
+  "/agents",
+  asyncHandler(async (req, res) => {
+    const agent = await createAgent(req.body);
+    res.status(201).json(agent);
+  })
+);
+
+itemsRouter.get(
+  "/agents/:itemId",
+  asyncHandler(async (req, res) => {
+    const itemId = parseIntParam(req.params.itemId, "itemId");
+    const agent = await getAgentByItemId(itemId);
+    res.json(agent);
   })
 );

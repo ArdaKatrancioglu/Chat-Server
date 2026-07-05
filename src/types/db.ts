@@ -38,6 +38,7 @@ export interface UserLoadout {
   secondary_gun_id: number | null;
   knife_id: number | null;
   throwable_id: number | null;
+  agent_id: number | null;
 }
 
 export interface UserItem {
@@ -72,6 +73,27 @@ export interface ThrowableItem {
   item_id: number | null;
   throwable_id: string | null;
   description: string | null;
+}
+
+export interface Agent {
+  item_id: number | null;
+  agent_id: string | null;
+  description: string | null;
+}
+
+export type HydratedItemKind = "weapon" | "melee" | "throwable" | "agent" | "unknown";
+
+export interface HydratedUserItem extends UserItem {
+  kind: HydratedItemKind;
+  details: Weapon | Melee | ThrowableItem | Agent | null;
+}
+
+export interface HydratedUserLoadout extends UserLoadout {
+  primary_gun: HydratedUserItem | null;
+  secondary_gun: HydratedUserItem | null;
+  knife: HydratedUserItem | null;
+  throwable: HydratedUserItem | null;
+  agent: HydratedUserItem | null;
 }
 
 export interface Skin {
