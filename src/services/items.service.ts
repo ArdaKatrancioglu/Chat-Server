@@ -44,7 +44,9 @@ const agentColumns = ["item_id", "agent_id", "description"];
 
 function validateItemId(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value)) {
-    throw new AppError(400, "item_id must be an integer");
+    throw new AppError(400, "VALIDATION_ERROR", "item_id must be an integer", {
+      details: { field: "item_id" }
+    });
   }
 
   return value;
@@ -52,7 +54,9 @@ function validateItemId(value: unknown): number {
 
 function validateNumber(value: unknown, fieldName: string): number {
   if (typeof value !== "number" || Number.isNaN(value)) {
-    throw new AppError(400, `${fieldName} must be a number`);
+    throw new AppError(400, "VALIDATION_ERROR", `${fieldName} must be a number`, {
+      details: { field: fieldName }
+    });
   }
 
   return value;
@@ -68,7 +72,9 @@ function validateOptionalItemId(value: unknown): number | null {
 
 function detailsObject(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new AppError(400, "details must be an object");
+    throw new AppError(400, "INVALID_ITEM_DETAILS", "details must be an object", {
+      details: { field: "details" }
+    });
   }
 
   return value as Record<string, unknown>;
@@ -81,14 +87,21 @@ export function validateTypedItemPayload(data: Record<string, unknown>): {
   const itemType = parseItemType(data.item_type);
 
   if (itemType === null) {
-    throw new AppError(400, "item_type must be one of weapon, melee, throwable, or agent");
+    throw new AppError(
+      400,
+      "INVALID_ITEM_TYPE",
+      "item_type must be one of weapon, melee, throwable, or agent",
+      { details: { field: "item_type" } }
+    );
   }
 
   const details = detailsObject(data.details);
 
   if (itemType === ITEM_TYPE_WEAPON) {
     if (typeof details.weapon_id !== "string" || details.weapon_id.trim() === "") {
-      throw new AppError(400, "details.weapon_id is required");
+      throw new AppError(400, "MISSING_REQUIRED_FIELD", "details.weapon_id is required", {
+        details: { field: "details.weapon_id" }
+      });
     }
     validateNumber(details.skin_id, "details.skin_id");
     validateNumber(details.pattern_x, "details.pattern_x");
@@ -98,7 +111,9 @@ export function validateTypedItemPayload(data: Record<string, unknown>): {
 
   if (itemType === ITEM_TYPE_MELEE) {
     if (typeof details.melee_id !== "string" || details.melee_id.trim() === "") {
-      throw new AppError(400, "details.melee_id is required");
+      throw new AppError(400, "MISSING_REQUIRED_FIELD", "details.melee_id is required", {
+        details: { field: "details.melee_id" }
+      });
     }
     validateNumber(details.skin_id, "details.skin_id");
     validateNumber(details.pattern_x, "details.pattern_x");
@@ -108,13 +123,17 @@ export function validateTypedItemPayload(data: Record<string, unknown>): {
 
   if (itemType === ITEM_TYPE_THROWABLE) {
     if (typeof details.throwable_id !== "string" || details.throwable_id.trim() === "") {
-      throw new AppError(400, "details.throwable_id is required");
+      throw new AppError(400, "MISSING_REQUIRED_FIELD", "details.throwable_id is required", {
+        details: { field: "details.throwable_id" }
+      });
     }
   }
 
   if (itemType === ITEM_TYPE_AGENT) {
     if (typeof details.agent_id !== "string" || details.agent_id.trim() === "") {
-      throw new AppError(400, "details.agent_id is required");
+      throw new AppError(400, "MISSING_REQUIRED_FIELD", "details.agent_id is required", {
+        details: { field: "details.agent_id" }
+      });
     }
   }
 
@@ -276,7 +295,7 @@ export async function getHydratedUserItem(userId: string, itemId: number): Promi
   const items = await selectHydratedUserItems(userId, itemId);
 
   if (!items[0]) {
-    throw new AppError(404, "User item not found");
+    throw new AppError(404, "RESOURCE_NOT_FOUND", "User item not found.");
   }
 
   return items[0];
@@ -322,7 +341,7 @@ export async function createUserItem(userId: string, data: Record<string, unknow
   } catch (error) {
     await connection.rollback();
     if (isDuplicateEntryError(error)) {
-      throw new AppError(409, "User item already exists");
+      throw new AppError(409, "DUPLICATE_RESOURCE", "User item already exists.");
     }
     throw error;
   } finally {
@@ -417,7 +436,7 @@ export async function createTypedUserItem(
   } catch (error) {
     await connection.rollback();
     if (isDuplicateEntryError(error)) {
-      throw new AppError(409, "User item already exists");
+      throw new AppError(409, "DUPLICATE_RESOURCE", "User item already exists.");
     }
     throw error;
   } finally {
@@ -438,7 +457,7 @@ export async function deleteUserItem(userId: string, itemId: number): Promise<vo
     );
 
     if (!items[0]) {
-      throw new AppError(404, "User item not found");
+      throw new AppError(404, "RESOURCE_NOT_FOUND", "User item not found.");
     }
 
     await connection.execute("DELETE FROM `WEAPON` WHERE `item_id` = ?", [itemId]);
@@ -452,7 +471,7 @@ export async function deleteUserItem(userId: string, itemId: number): Promise<vo
     );
 
     if (result.affectedRows === 0) {
-      throw new AppError(404, "User item not found");
+      throw new AppError(404, "RESOURCE_NOT_FOUND", "User item not found.");
     }
 
     await incrementUserVersion(userId, "inventory", connection);
@@ -487,7 +506,7 @@ export async function getAgentByItemId(itemId: number): Promise<Agent> {
   ]);
 
   if (!rows[0]) {
-    throw new AppError(404, "Agent not found");
+    throw new AppError(404, "RESOURCE_NOT_FOUND", "Agent not found.");
   }
 
   return rows[0];
@@ -512,7 +531,7 @@ export async function getWeaponByItemId(itemId: number): Promise<Weapon> {
   ]);
 
   if (!rows[0]) {
-    throw new AppError(404, "Weapon not found");
+    throw new AppError(404, "RESOURCE_NOT_FOUND", "Weapon not found.");
   }
 
   return rows[0];
@@ -535,7 +554,7 @@ export async function getMeleeByItemId(itemId: number): Promise<Melee> {
   ]);
 
   if (!rows[0]) {
-    throw new AppError(404, "Melee item not found");
+    throw new AppError(404, "RESOURCE_NOT_FOUND", "Melee item not found.");
   }
 
   return rows[0];
@@ -562,7 +581,7 @@ export async function getThrowableByItemId(itemId: number): Promise<ThrowableIte
   );
 
   if (!rows[0]) {
-    throw new AppError(404, "Throwable item not found");
+    throw new AppError(404, "RESOURCE_NOT_FOUND", "Throwable item not found.");
   }
 
   return rows[0];

@@ -1,14 +1,27 @@
-# Ignore Firebase service account key
-server/serviceAccountKey.json
+# Dependencies
+node_modules/
 
-server/README.md
+# Build output
+dist/
+*.tsbuildinfo
 
-# Ignore logs folder inside /server
-server/logs/
-
-# Ignore Node Modules
-node_modules
-
-# Local environment and build output
+# Environment files
 .env
-dist
+.env.*
+!.env.example
+
+# Local logs
+*.log
+logs/
+npm-debug.log*
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Legacy server artifacts
+server/logs/
+server/serviceAccountKey.json
+server/README.md

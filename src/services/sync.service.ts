@@ -130,7 +130,11 @@ function bodyString(value: unknown, fallback: string | null): string | null {
 
 function requireDefaultItemId(value: number | undefined, label: string): number {
   if (value === undefined) {
-    throw new AppError(500, `Default sync item missing: ${label}`);
+    throw new AppError(
+      500,
+      "INTERNAL_SERVER_ERROR",
+      `Default sync item missing: ${label}`
+    );
   }
 
   return value;
@@ -150,6 +154,34 @@ export function shouldFillDefaultLoadout(loadout: {
     loadout.throwable_id === null ||
     loadout.agent_id === null
   );
+}
+
+export function buildUserNotRegisteredError(userId: string, email?: string | null): AppError {
+  return new AppError(
+    409,
+    "USER_NOT_REGISTERED",
+    "Authenticated Firebase user does not exist in the backend database. Create the user first, then call /auth/sync again.",
+    {
+      requiredAction: "CREATE_USER",
+      details: {
+        user: {
+          id: userId,
+          email: email ?? null
+        }
+      }
+    }
+  );
+}
+
+async function ensureRegisteredUser(connection: PoolConnection, userId: string, email?: string | null) {
+  const [rows] = await connection.execute<RowDataPacket[]>(
+    "SELECT * FROM `USER` WHERE `id` = ? LIMIT 1 FOR UPDATE",
+    [userId]
+  );
+
+  if (rows.length === 0) {
+    throw buildUserNotRegisteredError(userId, email);
+  }
 }
 
 async function ensureDefaultWeapon(
@@ -270,21 +302,17 @@ async function ensureDefaultAgent(
   return { itemId: itemResult.insertId, created: true };
 }
 
-export async function syncAuthenticatedUser(userId: string, data: Record<string, unknown>) {
-  const username = bodyString(data.username, "Player");
-  const email = bodyString(data.email, null);
+export async function syncAuthenticatedUser(
+  userId: string,
+  data: Record<string, unknown>,
+  options?: { authEmail?: string | null }
+) {
   const clientVersions = normalizeClientVersions(data.versions);
   const connection = await pool.getConnection();
 
   try {
     await connection.beginTransaction();
-
-    await connection.execute(
-      "INSERT IGNORE INTO `USER` (`id`, `username`, `email`) VALUES (?, ?, ?)",
-      [userId, username, email]
-    );
-
-    await connection.execute("SELECT * FROM `USER` WHERE `id` = ? LIMIT 1 FOR UPDATE", [userId]);
+    await ensureRegisteredUser(connection, userId, options?.authEmail);
     await ensureUserVersions(userId, connection);
 
     const [settingsResult] = await connection.execute<ResultSetHeader>(

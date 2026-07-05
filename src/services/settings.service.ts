@@ -36,7 +36,7 @@ export async function getUserSettings(userId: string): Promise<UserSettingsRow> 
   );
 
   if (!rows[0]) {
-    throw new AppError(404, "User settings not found");
+    throw new AppError(404, "RESOURCE_NOT_FOUND", "User settings not found.");
   }
 
   return rows[0];

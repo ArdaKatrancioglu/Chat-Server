@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String            @id @db.VarChar(128)
+  username           String?           @db.VarChar(255)
+  email              String?           @db.VarChar(255)
+  userSettings       UserSettings?
+  userGenericStats   UserGenericStats?
+  userPlayStats      UserPlayStats?
+  userItems          UserItem[]
+  userVersions       UserVersions?
+
+  @@map("USER")
+}
+
+model UserPlayStats {
+  user_id          String  @id @db.VarChar(128)
+  kills            Int?
+  deaths           Int?
+  wins             Int?
+  losses           Int?
+  damage_dealt     Int?
+  damage_taken     Int?
+  healing_done     Int?
+  headshots        Int?
+  shots_fired      Int?
+  shots_hit        Int?
+  playtime_seconds BigInt?
+  user             User    @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("USER_PLAY_STATS")
+}
+
+model UserSettings {
+  user_id  String @id @db.VarChar(128)
+  settings Json?
+  user     User   @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("USER_SETTINGS")
+}
+
+model UserGenericStats {
+  user_id     String    @id @db.VarChar(128)
+  created_at  DateTime? @db.Date
+  last_online DateTime? @db.DateTime(3)
+  xp          Int?
+  user        User      @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("USER_GENERIC_STATS")
+}
+
+model UserLoadout {
+  user_id          String @db.VarChar(128)
+  loadout_id       Int?
+  slot_index       Int?
+  primary_gun_id   Int?
+  secondary_gun_id Int?
+  knife_id         Int?
+  throwable_id     Int?
+  agent_id         Int?
+
+  @@unique([user_id, slot_index], map: "uq_user_loadout_user_slot")
+  @@map("USER_LOADOUT")
+  @@ignore
+}
+
+model Weapon {
+  item_id     Int     @id @db.Int
+  weapon_id   String? @db.VarChar(255)
+  skin_id     Int?
+  description String? @db.VarChar(255)
+  pattern_x   Float?
+  pattern_y   Float?
+  pattern_z   Float?
+  userItem    UserItem @relation(fields: [item_id], references: [item_id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("WEAPON")
+}
+
+model UserItem {
+  user_id        String    @db.VarChar(128)
+  item_id        Int       @id @default(autoincrement())
+  item_type      Int       @db.UnsignedInt
+  acquired_at    DateTime? @db.DateTime(3)
+  first_owner_id String?   @db.VarChar(128)
+  user           User      @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  weapon         Weapon?
+  throwable      Throwable?
+  melee          Melee?
+  agent          Agent?
+
+  @@map("USER_ITEM")
+}
+
+model Throwable {
+  item_id       Int     @id @db.Int
+  throwable_id  String? @db.VarChar(255)
+  description   String? @db.VarChar(255)
+  userItem      UserItem @relation(fields: [item_id], references: [item_id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("THROWABLE")
+}
+
+model Melee {
+  item_id     Int      @id @db.Int
+  melee_id    String?  @db.VarChar(255)
+  skin_id     Int?
+  description String?  @db.VarChar(255)
+  pattern_x   Float?
+  pattern_y   Float?
+  pattern_z   Float?
+  userItem    UserItem @relation(fields: [item_id], references: [item_id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("MELEE")
+}
+
+model Agent {
+  item_id     Int      @id @db.Int
+  agent_id    String?  @db.VarChar(255)
+  description String?  @db.VarChar(255)
+  userItem    UserItem @relation(fields: [item_id], references: [item_id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("AGENT")
+}
+
+model UserVersions {
+  user_id               String @id @db.VarChar(128)
+  settings_version      Int    @default(0)
+  generic_stats_version Int    @default(0)
+  play_stats_version    Int    @default(0)
+  loadout_version       Int    @default(0)
+  inventory_version     Int    @default(0)
+  user                  User   @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_user_versions_user")
+
+  @@map("user_versions")
+}

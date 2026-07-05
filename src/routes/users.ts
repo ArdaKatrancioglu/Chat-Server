@@ -10,7 +10,7 @@ usersRouter.get(
   "/users",
   asyncHandler(async (req, res) => {
     if (!canUseDevAdminBypass(req)) {
-      throw new AppError(403, "Forbidden");
+      throw new AppError(403, "ADMIN_REQUIRED", "You do not have permission to access this resource.");
     }
 
     const users = await listUsers();

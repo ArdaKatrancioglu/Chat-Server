@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { AppError, toApiErrorBody } from "../middleware/errorHandler";
 import { validateTypedItemPayload } from "../services/items.service";
 import { normalizeUtcDate, toUtcIsoString } from "../utils/time";
 
@@ -62,14 +63,28 @@ test("agent and throwable item payloads validate type-specific details", () => {
 });
 
 test("invalid selected item details return a clear validation error", () => {
-  assert.throws(
-    () =>
-      validateTypedItemPayload({
-        item_type: "weapon",
-        details: { melee_id: "wrong", skin_id: -1, pattern_x: 0, pattern_y: 0, pattern_z: 0 }
-      }),
-    /details\.weapon_id is required/
-  );
+  let thrown: unknown;
+
+  try {
+    validateTypedItemPayload({
+      item_type: "weapon",
+      details: { melee_id: "wrong", skin_id: -1, pattern_x: 0, pattern_y: 0, pattern_z: 0 }
+    });
+  } catch (error) {
+    thrown = error;
+  }
+
+  assert.ok(thrown instanceof AppError);
+  assert.deepEqual(toApiErrorBody(thrown), {
+    error: {
+      code: "MISSING_REQUIRED_FIELD",
+      message: "details.weapon_id is required",
+      status: 400,
+      details: {
+        field: "details.weapon_id"
+      }
+    }
+  });
 });
 
 test("vanilla weapon and melee payloads use skin_id -1", () => {

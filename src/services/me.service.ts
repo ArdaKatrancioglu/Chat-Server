@@ -13,7 +13,12 @@ export async function ensureUserSynced(userId: string): Promise<void> {
   ]);
 
   if (rows.length === 0) {
-    throw new AppError(404, "User not synced. Call POST /auth/sync first.");
+    throw new AppError(
+      404,
+      "USER_NOT_FOUND",
+      "User not synced. Call POST /auth/sync first.",
+      { requiredAction: "SYNC_USER" }
+    );
   }
 }
 

@@ -9,7 +9,9 @@ authRouter.post(
   "/auth/sync",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const profile = await syncAuthenticatedUser(getAuthUid(req), req.body);
+    const profile = await syncAuthenticatedUser(getAuthUid(req), req.body, {
+      authEmail: req.auth?.email
+    });
     res.json(profile);
   })
 );

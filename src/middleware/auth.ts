@@ -53,6 +53,14 @@ export function shouldAllowDevAdminBypass(input: {
   return !input.expectedUserId || input.headerUserId === input.expectedUserId;
 }
 
+export function buildMissingAuthHeaderError(): AppError {
+  return new AppError(401, "MISSING_AUTH_HEADER", "Missing Firebase bearer token.");
+}
+
+export function buildInvalidAuthTokenError(): AppError {
+  return new AppError(401, "INVALID_AUTH_TOKEN", "Invalid Firebase bearer token.");
+}
+
 function getFirebaseAdminAuth(): Auth {
   if (firebaseAuth) {
     return firebaseAuth;
@@ -63,7 +71,11 @@ function getFirebaseAdminAuth(): Auth {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
   if (!projectId || !clientEmail || !privateKey) {
-    throw new AppError(500, "Firebase Admin credentials are not configured");
+    throw new AppError(
+      500,
+      "INTERNAL_SERVER_ERROR",
+      "Firebase Admin credentials are not configured."
+    );
   }
 
   const app =
@@ -97,7 +109,8 @@ function applyDevAuthBypass(req: Request): boolean {
 
   req.auth = {
     uid: headerUserId || fallbackUserId,
-    source: "dev"
+    source: "dev",
+    email: null
   };
 
   return true;
@@ -107,13 +120,13 @@ function getBearerToken(req: Request): string {
   const authorization = req.get("authorization");
 
   if (!authorization?.startsWith("Bearer ")) {
-    throw new AppError(401, "Missing Firebase bearer token");
+    throw buildMissingAuthHeaderError();
   }
 
   const token = authorization.slice("Bearer ".length).trim();
 
   if (!token) {
-    throw new AppError(401, "Missing Firebase bearer token");
+    throw buildMissingAuthHeaderError();
   }
 
   return token;
@@ -131,7 +144,8 @@ export const requireAuth: RequestHandler = async (req: Request, _res: Response, 
     const decodedToken = await getFirebaseAdminAuth().verifyIdToken(getBearerToken(req));
     req.auth = {
       uid: decodedToken.uid,
-      source: "firebase"
+      source: "firebase",
+      email: decodedToken.email ?? null
     };
 
     next();
@@ -141,13 +155,13 @@ export const requireAuth: RequestHandler = async (req: Request, _res: Response, 
       return;
     }
 
-    next(new AppError(401, "Invalid Firebase bearer token"));
+    next(buildInvalidAuthTokenError());
   }
 };
 
 export function getAuthUid(req: Request): string {
   if (!req.auth?.uid) {
-    throw new AppError(401, "Authentication required");
+    throw new AppError(401, "AUTH_REQUIRED", "Authentication required.");
   }
 
   return req.auth.uid;
@@ -184,7 +198,7 @@ export const protectUserParamRoute: RequestHandler = (req, res, next) => {
     }
 
     if (getAuthUid(req) !== req.params.id) {
-      next(new AppError(403, "Forbidden"));
+      next(new AppError(403, "FORBIDDEN", "You do not have permission to access this resource."));
       return;
     }
 
@@ -205,7 +219,7 @@ export const protectUserCreateRoute: RequestHandler = (req, res, next) => {
     }
 
     if (getAuthUid(req) !== req.body?.id) {
-      next(new AppError(403, "Forbidden"));
+      next(new AppError(403, "FORBIDDEN", "You do not have permission to access this resource."));
       return;
     }
 

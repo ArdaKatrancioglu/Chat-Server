@@ -2,12 +2,19 @@ FROM node:22-slim
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json ./
 
-RUN npm ci --omit=dev
+RUN apt-get update -y && apt-get install -y openssl
 
-COPY . .
+RUN npm install
 
-EXPOSE 8080
+COPY tsconfig.json ./
+COPY src ./src
+COPY prisma ./prisma
 
-CMD ["node", "server/main.js"]
+RUN npm run build
+RUN npm run db:generate
+
+EXPOSE 3000
+
+CMD ["npm", "run", "start:prod"]

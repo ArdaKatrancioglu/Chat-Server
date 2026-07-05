@@ -13,7 +13,9 @@ export function normalizeUtcDate(value: unknown): Date {
     }
   }
 
-  throw new AppError(400, "Invalid datetime value");
+  throw new AppError(400, "VALIDATION_ERROR", "Invalid datetime value", {
+    details: { field: "datetime" }
+  });
 }
 
 export function toUtcIsoString(value: unknown): string | null {

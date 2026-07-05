@@ -6,6 +6,7 @@ declare global {
       auth?: {
         uid: string;
         source: "firebase" | "dev";
+        email?: string | null;
       };
     }
   }

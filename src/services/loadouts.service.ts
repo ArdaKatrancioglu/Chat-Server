@@ -74,7 +74,7 @@ export async function getUserLoadout(userId: string, loadoutId: number): Promise
   );
 
   if (!rows[0]) {
-    throw new AppError(404, "Loadout not found");
+    throw new AppError(404, "RESOURCE_NOT_FOUND", "Loadout not found.");
   }
 
   return rows[0];
@@ -85,7 +85,9 @@ export async function createUserLoadout(
   data: Record<string, unknown>
 ): Promise<UserLoadout> {
   if (typeof data.loadout_id !== "number" || !Number.isInteger(data.loadout_id)) {
-    throw new AppError(400, "loadout_id must be an integer");
+    throw new AppError(400, "VALIDATION_ERROR", "loadout_id must be an integer", {
+      details: { field: "loadout_id" }
+    });
   }
 
   const values = loadoutColumns.map((column) => toSqlValue(data[column]));
@@ -117,7 +119,9 @@ export async function updateUserLoadout(
   const columns = loadoutColumns.filter((column) => Object.prototype.hasOwnProperty.call(data, column));
 
   if (columns.length === 0) {
-    throw new AppError(400, "No valid loadout fields provided");
+    throw new AppError(400, "INVALID_REQUEST_BODY", "No valid loadout fields provided.", {
+      details: { fields: loadoutColumns }
+    });
   }
 
   const assignments = columns.map((column) => `\`${column}\` = ?`).join(", ");
@@ -132,7 +136,7 @@ export async function updateUserLoadout(
     );
 
     if (result.affectedRows === 0) {
-      throw new AppError(404, "Loadout not found");
+      throw new AppError(404, "RESOURCE_NOT_FOUND", "Loadout not found.");
     }
 
     await incrementUserVersion(userId, "loadout", connection);
@@ -159,7 +163,7 @@ export async function deleteUserLoadout(userId: string, loadoutId: number): Prom
     );
 
     if (result.affectedRows === 0) {
-      throw new AppError(404, "Loadout not found");
+      throw new AppError(404, "RESOURCE_NOT_FOUND", "Loadout not found.");
     }
 
     await incrementUserVersion(userId, "loadout", connection);

@@ -103,7 +103,7 @@ export async function getGenericStats(userId: string): Promise<UserGenericStats>
   );
 
   if (!rows[0]) {
-    throw new AppError(404, "Generic stats not found");
+    throw new AppError(404, "RESOURCE_NOT_FOUND", "Generic stats not found.");
   }
 
   return toGenericStatsResponse(rows[0]);
@@ -144,7 +144,9 @@ export async function patchGenericStats(
   const columns = selectGenericStatsPatchColumns(data);
 
   if (columns.length === 0) {
-    throw new AppError(400, "No valid generic stats fields provided");
+    throw new AppError(400, "INVALID_REQUEST_BODY", "No valid generic stats fields provided.", {
+      details: { fields: genericStatsColumns }
+    });
   }
 
   const connection = await pool.getConnection();
@@ -158,7 +160,7 @@ export async function patchGenericStats(
     ]);
 
     if (result.affectedRows === 0) {
-      throw new AppError(404, "Generic stats not found");
+      throw new AppError(404, "RESOURCE_NOT_FOUND", "Generic stats not found.");
     }
 
     await incrementUserVersion(userId, "genericStats", connection);
@@ -180,7 +182,7 @@ export async function getPlayStats(userId: string): Promise<UserPlayStats> {
   );
 
   if (!rows[0]) {
-    throw new AppError(404, "Play stats not found");
+    throw new AppError(404, "RESOURCE_NOT_FOUND", "Play stats not found.");
   }
 
   return rows[0];
@@ -215,7 +217,9 @@ export async function patchPlayStats(userId: string, data: Record<string, unknow
   const columns = selectPlayStatsPatchColumns(data);
 
   if (columns.length === 0) {
-    throw new AppError(400, "No valid play stats fields provided");
+    throw new AppError(400, "INVALID_REQUEST_BODY", "No valid play stats fields provided.", {
+      details: { fields: playStatsColumns }
+    });
   }
 
   const connection = await pool.getConnection();
@@ -229,7 +233,7 @@ export async function patchPlayStats(userId: string, data: Record<string, unknow
     ]);
 
     if (result.affectedRows === 0) {
-      throw new AppError(404, "Play stats not found");
+      throw new AppError(404, "RESOURCE_NOT_FOUND", "Play stats not found.");
     }
 
     await incrementUserVersion(userId, "playStats", connection);
