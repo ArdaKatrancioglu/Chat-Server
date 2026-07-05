@@ -10,17 +10,32 @@ export interface UserPlayStats {
   user_id: UserId;
   kills: number | null;
   deaths: number | null;
-  matches_played: number | null;
   wins: number | null;
   losses: number | null;
   damage_dealt: number | null;
   damage_taken: number | null;
   healing_done: number | null;
   headshots: number | null;
-  headshot_rate: number | null;
   shots_fired: number | null;
   shots_hit: number | null;
   playtime_seconds: number | string | null;
+}
+
+export interface UserVersions {
+  user_id: UserId;
+  settings_version: number;
+  generic_stats_version: number;
+  play_stats_version: number;
+  loadout_version: number;
+  inventory_version: number;
+}
+
+export interface ClientSyncVersions {
+  settings: number;
+  genericStats: number;
+  playStats: number;
+  loadout: number;
+  inventory: number;
 }
 
 export interface UserGenericStats {
@@ -83,7 +98,8 @@ export interface Agent {
 
 export type HydratedItemKind = "weapon" | "melee" | "throwable" | "agent" | "unknown";
 
-export interface HydratedUserItem extends UserItem {
+export interface HydratedUserItem extends Omit<UserItem, "item_type"> {
+  item_type: "weapon" | "melee" | "throwable" | "agent" | "unknown";
   kind: HydratedItemKind;
   details: Weapon | Melee | ThrowableItem | Agent | null;
 }
@@ -94,10 +110,4 @@ export interface HydratedUserLoadout extends UserLoadout {
   knife: HydratedUserItem | null;
   throwable: HydratedUserItem | null;
   agent: HydratedUserItem | null;
-}
-
-export interface Skin {
-  skin_id: number | null;
-  material_name: number | null;
-  finish_name: number | null;
 }

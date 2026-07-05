@@ -6,7 +6,6 @@ import { itemsRouter } from "./routes/items";
 import { loadoutsRouter } from "./routes/loadouts";
 import { meRouter } from "./routes/me";
 import { settingsRouter } from "./routes/settings";
-import { skinsRouter } from "./routes/skins";
 import { statsRouter } from "./routes/stats";
 import { usersRouter } from "./routes/users";
 
@@ -31,7 +30,6 @@ app.use(settingsRouter);
 app.use(statsRouter);
 app.use(loadoutsRouter);
 app.use(itemsRouter);
-app.use(skinsRouter);
 
 app.use(errorHandler);
 

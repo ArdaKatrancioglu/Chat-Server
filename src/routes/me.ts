@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import { getAuthUid, requireAuth } from "../middleware/auth";
 import { asyncHandler } from "../middleware/errorHandler";
 import {
-  createUserItem,
+  createTypedUserItem,
   deleteUserItem,
   getHydratedUserItem,
   listHydratedUserItems
@@ -18,6 +18,7 @@ import { getUserSettings, putUserSettings } from "../services/settings.service";
 import {
   getGenericStats,
   getPlayStats,
+  patchGenericStats,
   patchPlayStats,
   putGenericStats,
   putPlayStats
@@ -78,6 +79,15 @@ meRouter.put(
   })
 );
 
+meRouter.patch(
+  "/me/generic-stats",
+  asyncHandler(async (req, res) => {
+    const userId = getAuthUid(req);
+    const stats = await patchGenericStats(userId, req.body);
+    res.json(stats);
+  })
+);
+
 meRouter.get(
   "/me/play-stats",
   asyncHandler(async (req, res) => {
@@ -99,7 +109,7 @@ meRouter.put(
 meRouter.patch(
   "/me/play-stats",
   asyncHandler(async (req, res) => {
-    const userId = await getSyncedAuthUid(req);
+    const userId = getAuthUid(req);
     const stats = await patchPlayStats(userId, req.body);
     res.json(stats);
   })
@@ -165,11 +175,8 @@ meRouter.get(
 meRouter.post(
   "/me/items",
   asyncHandler(async (req, res) => {
-    const userId = await getSyncedAuthUid(req);
-    const item = await createUserItem(userId, {
-      ...req.body,
-      first_owner_id: req.body?.first_owner_id ?? userId
-    });
+    const userId = getAuthUid(req);
+    const item = await createTypedUserItem(userId, req.body);
     res.status(201).json(item);
   })
 );

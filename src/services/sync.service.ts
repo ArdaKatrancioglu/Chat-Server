@@ -1,13 +1,27 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { pool } from "../db/pool";
 import { AppError } from "../middleware/errorHandler";
+import type { ClientSyncVersions } from "../types/db";
 import {
   ITEM_TYPE_AGENT,
   ITEM_TYPE_MELEE,
   ITEM_TYPE_THROWABLE,
   ITEM_TYPE_WEAPON
 } from "../types/itemTypes";
-import { getMeProfile } from "./me.service";
+import { listHydratedUserItems } from "./items.service";
+import { listHydratedUserLoadouts } from "./loadouts.service";
+import { getUserSettings } from "./settings.service";
+import { getGenericStats, getPlayStats } from "./stats.service";
+import { getUserById } from "./users.service";
+import {
+  ensureUserVersions,
+  getStaleSyncSections,
+  getUserVersions,
+  incrementUserVersion,
+  normalizeClientVersions,
+  setZeroVersionsToOne,
+  toClientSyncVersions
+} from "./versions.service";
 
 interface DefaultWeaponTemplate {
   weaponId: string;
@@ -27,6 +41,11 @@ interface DefaultThrowableTemplate {
 interface DefaultAgentTemplate {
   agentId: string;
   description: string;
+}
+
+interface EnsuredItem {
+  itemId: number;
+  created: boolean;
 }
 
 const defaultWeapons: DefaultWeaponTemplate[] = [
@@ -117,76 +136,102 @@ function requireDefaultItemId(value: number | undefined, label: string): number 
   return value;
 }
 
+export function shouldFillDefaultLoadout(loadout: {
+  primary_gun_id: number | null;
+  secondary_gun_id: number | null;
+  knife_id: number | null;
+  throwable_id: number | null;
+  agent_id: number | null;
+}): boolean {
+  return (
+    loadout.primary_gun_id === null ||
+    loadout.secondary_gun_id === null ||
+    loadout.knife_id === null ||
+    loadout.throwable_id === null ||
+    loadout.agent_id === null
+  );
+}
+
 async function ensureDefaultWeapon(
   connection: PoolConnection,
   userId: string,
   weapon: DefaultWeaponTemplate
-): Promise<number> {
+): Promise<EnsuredItem> {
   const [existingRows] = await connection.execute<RowDataPacket[]>(
     "SELECT `USER_ITEM`.`item_id` FROM `USER_ITEM` INNER JOIN `WEAPON` ON `WEAPON`.`item_id` = `USER_ITEM`.`item_id` WHERE `USER_ITEM`.`user_id` = ? AND `WEAPON`.`weapon_id` = ? LIMIT 1 FOR UPDATE",
     [userId, weapon.weaponId]
   );
 
   if (existingRows.length > 0) {
-    return Number(existingRows[0].item_id);
+    const itemId = Number(existingRows[0].item_id);
+    const [updateResult] = await connection.execute<ResultSetHeader>(
+      "UPDATE `WEAPON` SET `skin_id` = -1 WHERE `item_id` = ? AND `skin_id` = 0",
+      [itemId]
+    );
+    return { itemId, created: updateResult.affectedRows > 0 };
   }
 
   const [itemResult] = await connection.execute<ResultSetHeader>(
-    "INSERT INTO `USER_ITEM` (`user_id`, `item_type`, `acquired_at`, `first_owner_id`) VALUES (?, ?, CURRENT_DATE(), ?)",
+    "INSERT INTO `USER_ITEM` (`user_id`, `item_type`, `acquired_at`, `first_owner_id`) VALUES (?, ?, UTC_TIMESTAMP(3), ?)",
     [userId, ITEM_TYPE_WEAPON, userId]
   );
 
   await connection.execute(
-    "INSERT INTO `WEAPON` (`item_id`, `weapon_id`, `skin_id`, `description`, `pattern_x`, `pattern_y`, `pattern_z`) VALUES (?, ?, 0, ?, 0, 0, 0)",
+    "INSERT INTO `WEAPON` (`item_id`, `weapon_id`, `skin_id`, `description`, `pattern_x`, `pattern_y`, `pattern_z`) VALUES (?, ?, -1, ?, 0, 0, 0)",
     [itemResult.insertId, weapon.weaponId, weapon.description]
   );
 
-  return itemResult.insertId;
+  return { itemId: itemResult.insertId, created: true };
 }
 
 async function ensureDefaultMelee(
   connection: PoolConnection,
   userId: string,
   melee: DefaultMeleeTemplate
-): Promise<number> {
+): Promise<EnsuredItem> {
   const [existingRows] = await connection.execute<RowDataPacket[]>(
     "SELECT `USER_ITEM`.`item_id` FROM `USER_ITEM` INNER JOIN `MELEE` ON `MELEE`.`item_id` = `USER_ITEM`.`item_id` WHERE `USER_ITEM`.`user_id` = ? AND `MELEE`.`melee_id` = ? LIMIT 1 FOR UPDATE",
     [userId, melee.meleeId]
   );
 
   if (existingRows.length > 0) {
-    return Number(existingRows[0].item_id);
+    const itemId = Number(existingRows[0].item_id);
+    const [updateResult] = await connection.execute<ResultSetHeader>(
+      "UPDATE `MELEE` SET `skin_id` = -1 WHERE `item_id` = ? AND `skin_id` = 0",
+      [itemId]
+    );
+    return { itemId, created: updateResult.affectedRows > 0 };
   }
 
   const [itemResult] = await connection.execute<ResultSetHeader>(
-    "INSERT INTO `USER_ITEM` (`user_id`, `item_type`, `acquired_at`, `first_owner_id`) VALUES (?, ?, CURRENT_DATE(), ?)",
+    "INSERT INTO `USER_ITEM` (`user_id`, `item_type`, `acquired_at`, `first_owner_id`) VALUES (?, ?, UTC_TIMESTAMP(3), ?)",
     [userId, ITEM_TYPE_MELEE, userId]
   );
 
   await connection.execute(
-    "INSERT INTO `MELEE` (`item_id`, `melee_id`, `skin_id`, `description`, `pattern_x`, `pattern_y`, `pattern_z`) VALUES (?, ?, 0, ?, 0, 0, 0)",
+    "INSERT INTO `MELEE` (`item_id`, `melee_id`, `skin_id`, `description`, `pattern_x`, `pattern_y`, `pattern_z`) VALUES (?, ?, -1, ?, 0, 0, 0)",
     [itemResult.insertId, melee.meleeId, melee.description]
   );
 
-  return itemResult.insertId;
+  return { itemId: itemResult.insertId, created: true };
 }
 
 async function ensureDefaultThrowable(
   connection: PoolConnection,
   userId: string,
   throwable: DefaultThrowableTemplate
-): Promise<number> {
+): Promise<EnsuredItem> {
   const [existingRows] = await connection.execute<RowDataPacket[]>(
     "SELECT `USER_ITEM`.`item_id` FROM `USER_ITEM` INNER JOIN `THROWABLE` ON `THROWABLE`.`item_id` = `USER_ITEM`.`item_id` WHERE `USER_ITEM`.`user_id` = ? AND `THROWABLE`.`throwable_id` = ? LIMIT 1 FOR UPDATE",
     [userId, throwable.throwableId]
   );
 
   if (existingRows.length > 0) {
-    return Number(existingRows[0].item_id);
+    return { itemId: Number(existingRows[0].item_id), created: false };
   }
 
   const [itemResult] = await connection.execute<ResultSetHeader>(
-    "INSERT INTO `USER_ITEM` (`user_id`, `item_type`, `acquired_at`, `first_owner_id`) VALUES (?, ?, CURRENT_DATE(), ?)",
+    "INSERT INTO `USER_ITEM` (`user_id`, `item_type`, `acquired_at`, `first_owner_id`) VALUES (?, ?, UTC_TIMESTAMP(3), ?)",
     [userId, ITEM_TYPE_THROWABLE, userId]
   );
 
@@ -195,25 +240,25 @@ async function ensureDefaultThrowable(
     [itemResult.insertId, throwable.throwableId, throwable.description]
   );
 
-  return itemResult.insertId;
+  return { itemId: itemResult.insertId, created: true };
 }
 
 async function ensureDefaultAgent(
   connection: PoolConnection,
   userId: string,
   agent: DefaultAgentTemplate
-): Promise<number> {
+): Promise<EnsuredItem> {
   const [existingRows] = await connection.execute<RowDataPacket[]>(
     "SELECT `USER_ITEM`.`item_id` FROM `USER_ITEM` INNER JOIN `AGENT` ON `AGENT`.`item_id` = `USER_ITEM`.`item_id` WHERE `USER_ITEM`.`user_id` = ? AND `AGENT`.`agent_id` = ? LIMIT 1 FOR UPDATE",
     [userId, agent.agentId]
   );
 
   if (existingRows.length > 0) {
-    return Number(existingRows[0].item_id);
+    return { itemId: Number(existingRows[0].item_id), created: false };
   }
 
   const [itemResult] = await connection.execute<ResultSetHeader>(
-    "INSERT INTO `USER_ITEM` (`user_id`, `item_type`, `acquired_at`, `first_owner_id`) VALUES (?, ?, CURRENT_DATE(), ?)",
+    "INSERT INTO `USER_ITEM` (`user_id`, `item_type`, `acquired_at`, `first_owner_id`) VALUES (?, ?, UTC_TIMESTAMP(3), ?)",
     [userId, ITEM_TYPE_AGENT, userId]
   );
 
@@ -222,12 +267,13 @@ async function ensureDefaultAgent(
     [itemResult.insertId, agent.agentId, agent.description]
   );
 
-  return itemResult.insertId;
+  return { itemId: itemResult.insertId, created: true };
 }
 
 export async function syncAuthenticatedUser(userId: string, data: Record<string, unknown>) {
   const username = bodyString(data.username, "Player");
   const email = bodyString(data.email, null);
+  const clientVersions = normalizeClientVersions(data.versions);
   const connection = await pool.getConnection();
 
   try {
@@ -239,47 +285,65 @@ export async function syncAuthenticatedUser(userId: string, data: Record<string,
     );
 
     await connection.execute("SELECT * FROM `USER` WHERE `id` = ? LIMIT 1 FOR UPDATE", [userId]);
+    await ensureUserVersions(userId, connection);
 
-    await connection.execute(
+    const [settingsResult] = await connection.execute<ResultSetHeader>(
       "INSERT IGNORE INTO `USER_SETTINGS` (`user_id`, `settings`) VALUES (?, JSON_OBJECT())",
       [userId]
     );
+    if (settingsResult.affectedRows > 0) {
+      await incrementUserVersion(userId, "settings", connection);
+    }
 
-    await connection.execute(
-      "INSERT IGNORE INTO `USER_GENERIC_STATS` (`user_id`, `created_at`, `last_online`, `xp`) VALUES (?, CURRENT_DATE(), CURRENT_DATE(), 0)",
+    const [genericStatsResult] = await connection.execute<ResultSetHeader>(
+      "INSERT IGNORE INTO `USER_GENERIC_STATS` (`user_id`, `created_at`, `last_online`, `xp`) VALUES (?, UTC_DATE(), UTC_TIMESTAMP(3), 0)",
       [userId]
     );
+    if (genericStatsResult.affectedRows > 0) {
+      await incrementUserVersion(userId, "genericStats", connection);
+    }
 
-    await connection.execute(
-      "INSERT IGNORE INTO `USER_PLAY_STATS` (`user_id`, `kills`, `deaths`, `matches_played`, `wins`, `losses`, `damage_dealt`, `damage_taken`, `healing_done`, `headshots`, `headshot_rate`, `shots_fired`, `shots_hit`, `playtime_seconds`) VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)",
+    const [playStatsResult] = await connection.execute<ResultSetHeader>(
+      "INSERT IGNORE INTO `USER_PLAY_STATS` (`user_id`, `kills`, `deaths`, `wins`, `losses`, `damage_dealt`, `damage_taken`, `healing_done`, `headshots`, `shots_fired`, `shots_hit`, `playtime_seconds`) VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)",
       [userId]
     );
-
-    await connection.execute(
-      "INSERT IGNORE INTO `SKIN` (`skin_id`, `material_name`, `finish_name`) VALUES (0, 0, 0)"
-    );
+    if (playStatsResult.affectedRows > 0) {
+      await incrementUserVersion(userId, "playStats", connection);
+    }
 
     const weaponItemIds = new Map<string, number>();
+    let inventoryChanged = false;
     for (const weapon of defaultWeapons) {
-      weaponItemIds.set(weapon.weaponId, await ensureDefaultWeapon(connection, userId, weapon));
+      const ensuredWeapon = await ensureDefaultWeapon(connection, userId, weapon);
+      weaponItemIds.set(weapon.weaponId, ensuredWeapon.itemId);
+      inventoryChanged = inventoryChanged || ensuredWeapon.created;
     }
 
-    const defaultMeleeItemId = await ensureDefaultMelee(connection, userId, defaultMelee);
+    const defaultMeleeResult = await ensureDefaultMelee(connection, userId, defaultMelee);
+    const defaultMeleeItemId = defaultMeleeResult.itemId;
+    inventoryChanged = inventoryChanged || defaultMeleeResult.created;
+
     const throwableItemIds = new Map<string, number>();
     for (const throwable of defaultThrowables) {
-      throwableItemIds.set(
-        throwable.throwableId,
-        await ensureDefaultThrowable(connection, userId, throwable)
-      );
+      const ensuredThrowable = await ensureDefaultThrowable(connection, userId, throwable);
+      throwableItemIds.set(throwable.throwableId, ensuredThrowable.itemId);
+      inventoryChanged = inventoryChanged || ensuredThrowable.created;
     }
-    const defaultAgentItemId = await ensureDefaultAgent(connection, userId, defaultAgent);
+    const defaultAgentResult = await ensureDefaultAgent(connection, userId, defaultAgent);
+    const defaultAgentItemId = defaultAgentResult.itemId;
+    inventoryChanged = inventoryChanged || defaultAgentResult.created;
+
+    if (inventoryChanged) {
+      await incrementUserVersion(userId, "inventory", connection);
+    }
 
     const primaryGunId = requireDefaultItemId(weaponItemIds.get("M4A1"), "M4A1");
     const secondaryGunId = requireDefaultItemId(weaponItemIds.get("45 ACP"), "45 ACP");
     const grenadeItemId = requireDefaultItemId(throwableItemIds.get("grenade"), "grenade");
+    let loadoutChanged = false;
 
     for (let slotIndex = 0; slotIndex < 5; slotIndex += 1) {
-      await connection.execute(
+      const [insertLoadoutResult] = await connection.execute<ResultSetHeader>(
         "INSERT IGNORE INTO `USER_LOADOUT` (`user_id`, `loadout_id`, `slot_index`, `primary_gun_id`, `secondary_gun_id`, `knife_id`, `throwable_id`, `agent_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
           userId,
@@ -292,9 +356,10 @@ export async function syncAuthenticatedUser(userId: string, data: Record<string,
           defaultAgentItemId
         ]
       );
+      loadoutChanged = loadoutChanged || insertLoadoutResult.affectedRows > 0;
 
-      await connection.execute(
-        "UPDATE `USER_LOADOUT` SET `primary_gun_id` = COALESCE(`primary_gun_id`, ?), `secondary_gun_id` = COALESCE(`secondary_gun_id`, ?), `knife_id` = COALESCE(`knife_id`, ?), `throwable_id` = COALESCE(`throwable_id`, ?), `agent_id` = COALESCE(`agent_id`, ?) WHERE `user_id` = ? AND `slot_index` = ?",
+      const [updateLoadoutResult] = await connection.execute<ResultSetHeader>(
+        "UPDATE `USER_LOADOUT` SET `primary_gun_id` = COALESCE(`primary_gun_id`, ?), `secondary_gun_id` = COALESCE(`secondary_gun_id`, ?), `knife_id` = COALESCE(`knife_id`, ?), `throwable_id` = COALESCE(`throwable_id`, ?), `agent_id` = COALESCE(`agent_id`, ?) WHERE `user_id` = ? AND `slot_index` = ? AND (`primary_gun_id` IS NULL OR `secondary_gun_id` IS NULL OR `knife_id` IS NULL OR `throwable_id` IS NULL OR `agent_id` IS NULL)",
         [
           primaryGunId,
           secondaryGunId,
@@ -305,8 +370,14 @@ export async function syncAuthenticatedUser(userId: string, data: Record<string,
           slotIndex
         ]
       );
+      loadoutChanged = loadoutChanged || updateLoadoutResult.affectedRows > 0;
     }
 
+    if (loadoutChanged) {
+      await incrementUserVersion(userId, "loadout", connection);
+    }
+
+    await setZeroVersionsToOne(userId, connection);
     await connection.commit();
   } catch (error) {
     await connection.rollback();
@@ -315,5 +386,47 @@ export async function syncAuthenticatedUser(userId: string, data: Record<string,
     connection.release();
   }
 
-  return getMeProfile(userId);
+  return buildVersionedSyncResponse(userId, clientVersions);
+}
+
+async function buildVersionedSyncResponse(userId: string, clientVersions: ClientSyncVersions) {
+  const [user, versions] = await Promise.all([getUserById(userId), getUserVersions(userId)]);
+  const serverVersions = toClientSyncVersions(versions);
+  const staleSections = getStaleSyncSections(clientVersions, serverVersions);
+  const data: Record<string, unknown> = {};
+
+  await Promise.all(
+    staleSections.map(async (section) => {
+      if (section === "settings") {
+        const settings = await getUserSettings(userId);
+        data.settings = settings.settings ?? {};
+      }
+
+      if (section === "genericStats") {
+        data.genericStats = await getGenericStats(userId);
+      }
+
+      if (section === "playStats") {
+        data.playStats = await getPlayStats(userId);
+      }
+
+      if (section === "loadout") {
+        data.loadout = await listHydratedUserLoadouts(userId);
+      }
+
+      if (section === "inventory") {
+        data.inventory = await listHydratedUserItems(userId);
+      }
+    })
+  );
+
+  return {
+    user: {
+      userId: user.id,
+      username: user.username,
+      email: user.email
+    },
+    serverVersions,
+    data
+  };
 }

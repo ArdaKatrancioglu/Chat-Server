@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { canUseDevUserRoutes, protectUserCreateRoute, protectUserParamRoute } from "../middleware/auth";
+import { canUseDevAdminBypass, protectUserCreateRoute, protectUserParamRoute } from "../middleware/auth";
 import { AppError, asyncHandler } from "../middleware/errorHandler";
 import { createUser, getUserById, listUsers, updateUser } from "../services/users.service";
 import { parseStringParam } from "./params";
@@ -9,7 +9,7 @@ export const usersRouter = Router();
 usersRouter.get(
   "/users",
   asyncHandler(async (req, res) => {
-    if (!canUseDevUserRoutes(req)) {
+    if (!canUseDevAdminBypass(req)) {
       throw new AppError(403, "Forbidden");
     }
 

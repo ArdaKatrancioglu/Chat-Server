@@ -14,7 +14,7 @@ The database schema stays based on the ERD tables:
 - `THROWABLE`
 - `MELEE`
 - `AGENT`
-- `SKIN`
+- `user_versions`
 
 Firebase Authentication is the source of identity. `USER.id` and every `user_id` column use the Firebase UID string after migration `002_firebase_uid_and_sync_ready.sql`.
 
@@ -44,6 +44,9 @@ Apply migrations in PowerShell:
 Get-Content .\database\migrations\001_init.sql | docker exec -i chat-server-mysql mysql -u chat_api -pchat_api_password chat_server
 Get-Content .\database\migrations\002_firebase_uid_and_sync_ready.sql | docker exec -i chat-server-mysql mysql -u chat_api -pchat_api_password chat_server
 Get-Content .\database\migrations\003_agents_and_hydrated_inventory.sql | docker exec -i chat-server-mysql mysql -u chat_api -pchat_api_password chat_server
+Get-Content .\database\migrations\004_versioned_sync_and_play_stats.sql | docker exec -i chat-server-mysql mysql -u chat_api -pchat_api_password chat_server
+Get-Content .\database\migrations\005_skin_material_primary_key.sql | docker exec -i chat-server-mysql mysql -u chat_api -pchat_api_password chat_server
+Get-Content .\database\migrations\006_remove_skin_table_utc_and_float_patterns.sql | docker exec -i chat-server-mysql mysql -u chat_api -pchat_api_password chat_server
 ```
 
 Start the backend:
@@ -84,7 +87,7 @@ Production requests use:
 Authorization: Bearer <firebase_id_token>
 ```
 
-Local development can use the dev bypass only when `NODE_ENV` is not `production`, `DEV_AUTH_BYPASS=true`, and the request comes from localhost.
+Local development can use the dev bypass only when `NODE_ENV` is not `production`, `DEV_AUTH_BYPASS=true`, the request comes from localhost, and no `Authorization` header is present. If `Authorization: Bearer <firebase_id_token>` is sent, Firebase auth is always used.
 
 ## Auth Sync
 
@@ -95,14 +98,14 @@ Sync creates the current authenticated user and base template data if missing:
 - zeroed `USER_GENERIC_STATS`
 - zeroed `USER_PLAY_STATS`
 - five default `USER_LOADOUT` rows
-- vanilla `SKIN` with `skin_id = 0`
 - one owned `WEAPON` instance for each default weapon
 - one owned `MELEE` instance for `Default CT`
 - owned `THROWABLE` instances for `grenade` and `impact-grenade`
 - one owned `AGENT` instance for `default`
 - default loadout assignments for M4A1, 45 ACP, Default CT, Grenade, and Default Agent
+- `user_versions` for versioned sync
 
-The endpoint is idempotent:
+The endpoint is idempotent and versioned:
 
 ```http
 POST /auth/sync
@@ -114,7 +117,7 @@ cmd.exe curl example:
 curl -X POST http://localhost:3000/auth/sync ^
   -H "Content-Type: application/json" ^
   -H "X-Dev-User-Id: local-dev-user" ^
-  -d "{\"username\":\"Arda\",\"email\":\"arda@test.com\"}"
+  -d "{\"username\":\"Arda\",\"email\":\"arda@test.com\",\"versions\":{\"settings\":0,\"genericStats\":0,\"playStats\":0,\"loadout\":0,\"inventory\":0}}"
 ```
 
 PowerShell example:
@@ -125,8 +128,36 @@ Invoke-RestMethod `
   -Uri http://localhost:3000/auth/sync `
   -Headers @{ "X-Dev-User-Id" = "local-dev-user" } `
   -ContentType "application/json" `
-  -Body '{"username":"Arda","email":"arda@test.com"}'
+  -Body '{"username":"Arda","email":"arda@test.com","versions":{"settings":0,"genericStats":0,"playStats":0,"loadout":0,"inventory":0}}'
 ```
+
+Example response:
+
+```json
+{
+  "user": {
+    "userId": "local-dev-user",
+    "username": "Arda",
+    "email": "arda@test.com"
+  },
+  "serverVersions": {
+    "settings": 1,
+    "genericStats": 1,
+    "playStats": 1,
+    "loadout": 1,
+    "inventory": 1
+  },
+  "data": {
+    "settings": {},
+    "genericStats": {},
+    "playStats": {},
+    "loadout": [],
+    "inventory": []
+  }
+}
+```
+
+If a client version matches the server version, that section is omitted from `data`. If all versions match, the response has `data: {}`. Inventory version mismatch returns the full hydrated inventory, not a delta.
 
 ## Protected `/me` Examples
 
@@ -182,10 +213,41 @@ Invoke-RestMethod `
   -Body '{"kills":11,"wins":3}'
 ```
 
+Patch generic stats:
+
+```powershell
+Invoke-RestMethod `
+  -Method Patch `
+  -Uri http://localhost:3000/me/generic-stats `
+  -Headers $headers `
+  -ContentType "application/json" `
+  -Body '{"xp":1400,"last_online":"2026-07-05"}'
+```
+
 Get loadouts:
 
 ```powershell
 Invoke-RestMethod -Uri http://localhost:3000/me/loadouts -Headers $headers
+```
+
+Add a weapon item:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri http://localhost:3000/me/items `
+  -Headers $headers `
+  -ContentType "application/json" `
+  -Body '{"item_type":"weapon","details":{"weapon_id":"m4a1","skin_id":12,"description":"M4A1 Fade","pattern_x":0.125,"pattern_y":0.75,"pattern_z":0.5},"acquired_at":"2026-07-05T14:30:00Z"}'
+```
+
+Delete an inventory item:
+
+```powershell
+Invoke-RestMethod `
+  -Method Delete `
+  -Uri http://localhost:3000/me/items/123 `
+  -Headers $headers
 ```
 
 Expected after `POST /auth/sync`:
@@ -194,7 +256,7 @@ Expected after `POST /auth/sync`:
 - `/me/settings` returns `{}` in the `settings` field.
 - `/me/play-stats` returns zeroed stats.
 - `/me/loadouts` returns five default loadouts with default item IDs assigned.
-- `SKIN` contains vanilla skin id `0`.
+- vanilla weapon/melee items use `skin_id = -1`.
 
 ## Postman Checks
 
@@ -220,7 +282,14 @@ Body:
 ```json
 {
   "username": "Arda",
-  "email": "arda@test.com"
+  "email": "arda@test.com",
+  "versions": {
+    "settings": 0,
+    "genericStats": 0,
+    "playStats": 0,
+    "loadout": 0,
+    "inventory": 0
+  }
 }
 ```
 
@@ -230,7 +299,6 @@ Expected:
 - settings exists
 - stats exist
 - five loadouts exist
-- vanilla skin exists
 - default weapons exist
 - `Default CT` exists
 - `Grenade` exists
@@ -256,14 +324,14 @@ Expected: returns:
     {
       "user_id": "local-dev-user",
       "item_id": 123,
-      "item_type": 1,
-      "acquired_at": "2026-07-05",
+      "item_type": "weapon",
+      "acquired_at": "2026-07-05T14:30:00.000Z",
       "first_owner_id": "local-dev-user",
       "kind": "weapon",
       "details": {
         "item_id": 123,
         "weapon_id": "M4A1",
-        "skin_id": 0,
+        "skin_id": -1,
         "description": "Classic automatic rifle with balanced all-around performance.",
         "pattern_x": 0,
         "pattern_y": 0,
@@ -315,6 +383,15 @@ Expected in development:
 
 Expected in production: `403` unless an admin role system is added later.
 
+## Skin Model
+
+Migration `006_remove_skin_table_utc_and_float_patterns.sql` removes the separate `SKIN` table/model.
+
+- `WEAPON.skin_id` and `MELEE.skin_id` are item-level game identifiers.
+- `skin_id = -1` means vanilla or no skin.
+- `pattern_x`, `pattern_y`, and `pattern_z` are `FLOAT` columns for decimal pattern values.
+- No API response includes `material_name`.
+
 ## Existing Development Routes
 
 The existing `/users/:id` routes remain for local testing.
@@ -336,5 +413,6 @@ ALLOW_DEV_USER_ROUTES=true
 ```bash
 npm run dev
 npm run build
+npm test
 npm start
 ```

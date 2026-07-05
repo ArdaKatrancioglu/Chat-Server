@@ -4,6 +4,7 @@ import { AppError } from "../middleware/errorHandler";
 import type { HydratedUserLoadout, UserLoadout } from "../types/db";
 import { toSqlValue } from "../types/sql";
 import { getHydratedUserItem } from "./items.service";
+import { incrementUserVersion } from "./versions.service";
 
 type LoadoutRow = UserLoadout & RowDataPacket;
 
@@ -88,10 +89,22 @@ export async function createUserLoadout(
   }
 
   const values = loadoutColumns.map((column) => toSqlValue(data[column]));
-  await pool.execute(
-    "INSERT INTO `USER_LOADOUT` (`user_id`, `loadout_id`, `slot_index`, `primary_gun_id`, `secondary_gun_id`, `knife_id`, `throwable_id`, `agent_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    [userId, ...values]
-  );
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+    await connection.execute(
+      "INSERT INTO `USER_LOADOUT` (`user_id`, `loadout_id`, `slot_index`, `primary_gun_id`, `secondary_gun_id`, `knife_id`, `throwable_id`, `agent_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [userId, ...values]
+    );
+    await incrementUserVersion(userId, "loadout", connection);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 
   return getUserLoadout(userId, data.loadout_id);
 }
@@ -109,13 +122,26 @@ export async function updateUserLoadout(
 
   const assignments = columns.map((column) => `\`${column}\` = ?`).join(", ");
   const values = columns.map((column) => toSqlValue(data[column]));
-  const [result] = await pool.execute<ResultSetHeader>(
-    `UPDATE \`USER_LOADOUT\` SET ${assignments} WHERE \`user_id\` = ? AND \`loadout_id\` = ?`,
-    [...values, userId, loadoutId]
-  );
+  const connection = await pool.getConnection();
 
-  if (result.affectedRows === 0) {
-    throw new AppError(404, "Loadout not found");
+  try {
+    await connection.beginTransaction();
+    const [result] = await connection.execute<ResultSetHeader>(
+      `UPDATE \`USER_LOADOUT\` SET ${assignments} WHERE \`user_id\` = ? AND \`loadout_id\` = ?`,
+      [...values, userId, loadoutId]
+    );
+
+    if (result.affectedRows === 0) {
+      throw new AppError(404, "Loadout not found");
+    }
+
+    await incrementUserVersion(userId, "loadout", connection);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
 
   const nextLoadoutId = typeof data.loadout_id === "number" ? data.loadout_id : loadoutId;
@@ -123,12 +149,25 @@ export async function updateUserLoadout(
 }
 
 export async function deleteUserLoadout(userId: string, loadoutId: number): Promise<void> {
-  const [result] = await pool.execute<ResultSetHeader>(
-    "DELETE FROM `USER_LOADOUT` WHERE `user_id` = ? AND `loadout_id` = ?",
-    [userId, loadoutId]
-  );
+  const connection = await pool.getConnection();
 
-  if (result.affectedRows === 0) {
-    throw new AppError(404, "Loadout not found");
+  try {
+    await connection.beginTransaction();
+    const [result] = await connection.execute<ResultSetHeader>(
+      "DELETE FROM `USER_LOADOUT` WHERE `user_id` = ? AND `loadout_id` = ?",
+      [userId, loadoutId]
+    );
+
+    if (result.affectedRows === 0) {
+      throw new AppError(404, "Loadout not found");
+    }
+
+    await incrementUserVersion(userId, "loadout", connection);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
 }

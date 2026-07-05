@@ -20,6 +20,39 @@ function isLocalhostRequest(req: Request): boolean {
   return normalizedAddress === "127.0.0.1" || normalizedAddress === "::1";
 }
 
+export function shouldUseDevAuthBypass(input: {
+  hasAuthorizationHeader: boolean;
+  isProduction: boolean;
+  isLocalhost: boolean;
+  devAuthBypassEnabled: boolean;
+}): boolean {
+  return (
+    !input.hasAuthorizationHeader &&
+    !input.isProduction &&
+    input.isLocalhost &&
+    input.devAuthBypassEnabled
+  );
+}
+
+export function shouldAllowDevAdminBypass(input: {
+  isProduction: boolean;
+  isLocalhost: boolean;
+  devAuthBypassEnabled: boolean;
+  headerUserId: string | undefined;
+  expectedUserId: string | undefined;
+}): boolean {
+  if (
+    input.isProduction ||
+    !input.isLocalhost ||
+    !input.devAuthBypassEnabled ||
+    !input.headerUserId
+  ) {
+    return false;
+  }
+
+  return !input.expectedUserId || input.headerUserId === input.expectedUserId;
+}
+
 function getFirebaseAdminAuth(): Auth {
   if (firebaseAuth) {
     return firebaseAuth;
@@ -48,7 +81,14 @@ function getFirebaseAdminAuth(): Auth {
 }
 
 function applyDevAuthBypass(req: Request): boolean {
-  if (isProduction() || !isLocalhostRequest(req) || !isEnabled(process.env.DEV_AUTH_BYPASS)) {
+  if (
+    !shouldUseDevAuthBypass({
+      hasAuthorizationHeader: Boolean(req.get("authorization")),
+      isProduction: isProduction(),
+      isLocalhost: isLocalhostRequest(req),
+      devAuthBypassEnabled: isEnabled(process.env.DEV_AUTH_BYPASS)
+    })
+  ) {
     return false;
   }
 
@@ -81,7 +121,9 @@ function getBearerToken(req: Request): string {
 
 export const requireAuth: RequestHandler = async (req: Request, _res: Response, next: NextFunction) => {
   try {
-    if (applyDevAuthBypass(req)) {
+    const authorization = req.get("authorization");
+
+    if (!authorization && applyDevAuthBypass(req)) {
       next();
       return;
     }
@@ -117,6 +159,16 @@ export function canUseDevUserRoutes(req: Request): boolean {
     isLocalhostRequest(req) &&
     isEnabled(process.env.ALLOW_DEV_USER_ROUTES)
   );
+}
+
+export function canUseDevAdminBypass(req: Request): boolean {
+  return shouldAllowDevAdminBypass({
+    isProduction: isProduction(),
+    isLocalhost: isLocalhostRequest(req),
+    devAuthBypassEnabled: isEnabled(process.env.DEV_AUTH_BYPASS),
+    headerUserId: req.get("x-dev-user-id")?.trim(),
+    expectedUserId: process.env.DEV_AUTH_USER_ID?.trim()
+  });
 }
 
 export const protectUserParamRoute: RequestHandler = (req, res, next) => {
