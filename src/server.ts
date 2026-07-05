@@ -1,8 +1,10 @@
 import express from "express";
 import { pool } from "./db/pool";
 import { errorHandler } from "./middleware/errorHandler";
+import { authRouter } from "./routes/auth";
 import { itemsRouter } from "./routes/items";
 import { loadoutsRouter } from "./routes/loadouts";
+import { meRouter } from "./routes/me";
 import { settingsRouter } from "./routes/settings";
 import { skinsRouter } from "./routes/skins";
 import { statsRouter } from "./routes/stats";
@@ -22,6 +24,8 @@ app.get("/health", async (_req, res, next) => {
   }
 });
 
+app.use(authRouter);
+app.use(meRouter);
 app.use(usersRouter);
 app.use(settingsRouter);
 app.use(statsRouter);

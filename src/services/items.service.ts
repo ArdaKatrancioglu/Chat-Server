@@ -9,7 +9,6 @@ type WeaponRow = Weapon & RowDataPacket;
 type MeleeRow = Melee & RowDataPacket;
 type ThrowableRow = ThrowableItem & RowDataPacket;
 
-const userItemColumns = ["item_id", "item_type", "acquired_at", "first_owner_id"];
 const weaponColumns = [
   "item_id",
   "weapon_id",
@@ -44,7 +43,7 @@ function insertSql(tableName: string, columns: string[]): string {
   return `INSERT INTO \`${tableName}\` (${escapedColumns}) VALUES (${placeholders})`;
 }
 
-export async function listUserItems(userId: number): Promise<UserItem[]> {
+export async function listUserItems(userId: string): Promise<UserItem[]> {
   const [rows] = await pool.execute<UserItemRow[]>(
     "SELECT * FROM `USER_ITEM` WHERE `user_id` = ? ORDER BY `item_id`",
     [userId]
@@ -53,14 +52,34 @@ export async function listUserItems(userId: number): Promise<UserItem[]> {
   return rows;
 }
 
-export async function createUserItem(userId: number, data: Record<string, unknown>): Promise<UserItem> {
-  const itemId = validateItemId(data.item_id);
-  const values = userItemColumns.map((column) => toSqlValue(data[column]));
+export async function createUserItem(userId: string, data: Record<string, unknown>): Promise<UserItem> {
+  let itemId: number;
 
-  await pool.execute(
-    "INSERT INTO `USER_ITEM` (`user_id`, `item_id`, `item_type`, `acquired_at`, `first_owner_id`) VALUES (?, ?, ?, ?, ?)",
-    [userId, ...values]
-  );
+  if (data.item_id === undefined || data.item_id === null) {
+    const [result] = await pool.execute<ResultSetHeader>(
+      "INSERT INTO `USER_ITEM` (`user_id`, `item_type`, `acquired_at`, `first_owner_id`) VALUES (?, ?, ?, ?)",
+      [
+        userId,
+        toSqlValue(data.item_type),
+        toSqlValue(data.acquired_at),
+        toSqlValue(data.first_owner_id)
+      ]
+    );
+    itemId = result.insertId;
+  } else {
+    itemId = validateItemId(data.item_id);
+
+    await pool.execute(
+      "INSERT INTO `USER_ITEM` (`user_id`, `item_id`, `item_type`, `acquired_at`, `first_owner_id`) VALUES (?, ?, ?, ?, ?)",
+      [
+        userId,
+        itemId,
+        toSqlValue(data.item_type),
+        toSqlValue(data.acquired_at),
+        toSqlValue(data.first_owner_id)
+      ]
+    );
+  }
 
   const [rows] = await pool.execute<UserItemRow[]>(
     "SELECT * FROM `USER_ITEM` WHERE `user_id` = ? AND `item_id` = ? LIMIT 1",
@@ -70,7 +89,20 @@ export async function createUserItem(userId: number, data: Record<string, unknow
   return rows[0];
 }
 
-export async function deleteUserItem(userId: number, itemId: number): Promise<void> {
+export async function deleteUserItem(userId: string, itemId: number): Promise<void> {
+  const [items] = await pool.execute<UserItemRow[]>(
+    "SELECT * FROM `USER_ITEM` WHERE `user_id` = ? AND `item_id` = ? LIMIT 1",
+    [userId, itemId]
+  );
+
+  if (!items[0]) {
+    throw new AppError(404, "User item not found");
+  }
+
+  await pool.execute("DELETE FROM `WEAPON` WHERE `item_id` = ?", [itemId]);
+  await pool.execute("DELETE FROM `MELEE` WHERE `item_id` = ?", [itemId]);
+  await pool.execute("DELETE FROM `THROWABLE` WHERE `item_id` = ?", [itemId]);
+
   const [result] = await pool.execute<ResultSetHeader>(
     "DELETE FROM `USER_ITEM` WHERE `user_id` = ? AND `item_id` = ?",
     [userId, itemId]

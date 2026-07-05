@@ -15,7 +15,7 @@ const loadoutColumns = [
   "throwable_id"
 ];
 
-export async function listUserLoadouts(userId: number): Promise<UserLoadout[]> {
+export async function listUserLoadouts(userId: string): Promise<UserLoadout[]> {
   const [rows] = await pool.execute<LoadoutRow[]>(
     "SELECT * FROM `USER_LOADOUT` WHERE `user_id` = ? ORDER BY `slot_index`, `loadout_id`",
     [userId]
@@ -24,7 +24,7 @@ export async function listUserLoadouts(userId: number): Promise<UserLoadout[]> {
   return rows;
 }
 
-export async function getUserLoadout(userId: number, loadoutId: number): Promise<UserLoadout> {
+export async function getUserLoadout(userId: string, loadoutId: number): Promise<UserLoadout> {
   const [rows] = await pool.execute<LoadoutRow[]>(
     "SELECT * FROM `USER_LOADOUT` WHERE `user_id` = ? AND `loadout_id` = ? LIMIT 1",
     [userId, loadoutId]
@@ -38,7 +38,7 @@ export async function getUserLoadout(userId: number, loadoutId: number): Promise
 }
 
 export async function createUserLoadout(
-  userId: number,
+  userId: string,
   data: Record<string, unknown>
 ): Promise<UserLoadout> {
   if (typeof data.loadout_id !== "number" || !Number.isInteger(data.loadout_id)) {
@@ -55,7 +55,7 @@ export async function createUserLoadout(
 }
 
 export async function updateUserLoadout(
-  userId: number,
+  userId: string,
   loadoutId: number,
   data: Record<string, unknown>
 ): Promise<UserLoadout> {
@@ -80,7 +80,7 @@ export async function updateUserLoadout(
   return getUserLoadout(userId, nextLoadoutId);
 }
 
-export async function deleteUserLoadout(userId: number, loadoutId: number): Promise<void> {
+export async function deleteUserLoadout(userId: string, loadoutId: number): Promise<void> {
   const [result] = await pool.execute<ResultSetHeader>(
     "DELETE FROM `USER_LOADOUT` WHERE `user_id` = ? AND `loadout_id` = ?",
     [userId, loadoutId]

@@ -1,13 +1,13 @@
-export type DbId = number;
+export type UserId = string;
 
 export interface User {
-  id: number;
+  id: UserId;
   username: string | null;
   email: string | null;
 }
 
 export interface UserPlayStats {
-  user_id: number;
+  user_id: UserId;
   kills: number | null;
   deaths: number | null;
   matches_played: number | null;
@@ -24,14 +24,14 @@ export interface UserPlayStats {
 }
 
 export interface UserGenericStats {
-  user_id: number;
+  user_id: UserId;
   created_at: string | Date | null;
   last_online: string | Date | null;
   xp: number | null;
 }
 
 export interface UserLoadout {
-  user_id: number;
+  user_id: UserId;
   loadout_id: number | null;
   slot_index: number | null;
   primary_gun_id: number | null;
@@ -41,11 +41,11 @@ export interface UserLoadout {
 }
 
 export interface UserItem {
-  user_id: number;
+  user_id: UserId;
   item_id: number | null;
   item_type: number | null;
   acquired_at: string | Date | null;
-  first_owner_id: number | null;
+  first_owner_id: UserId | null;
 }
 
 export interface Weapon {

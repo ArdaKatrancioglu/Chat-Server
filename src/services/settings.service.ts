@@ -3,7 +3,7 @@ import { pool } from "../db/pool";
 import { AppError } from "../middleware/errorHandler";
 
 interface UserSettingsRow extends RowDataPacket {
-  user_id: number;
+  user_id: string;
   settings: unknown;
 }
 
@@ -15,7 +15,7 @@ function toJsonValue(value: unknown): string | null {
   return typeof value === "string" ? value : JSON.stringify(value);
 }
 
-async function settingsExist(userId: number): Promise<boolean> {
+async function settingsExist(userId: string): Promise<boolean> {
   const [rows] = await pool.execute<RowDataPacket[]>(
     "SELECT 1 FROM `USER_SETTINGS` WHERE `user_id` = ? LIMIT 1",
     [userId]
@@ -24,7 +24,7 @@ async function settingsExist(userId: number): Promise<boolean> {
   return rows.length > 0;
 }
 
-export async function getUserSettings(userId: number): Promise<UserSettingsRow> {
+export async function getUserSettings(userId: string): Promise<UserSettingsRow> {
   const [rows] = await pool.execute<UserSettingsRow[]>(
     "SELECT * FROM `USER_SETTINGS` WHERE `user_id` = ? LIMIT 1",
     [userId]
@@ -38,7 +38,7 @@ export async function getUserSettings(userId: number): Promise<UserSettingsRow> 
 }
 
 export async function putUserSettings(
-  userId: number,
+  userId: string,
   data: Record<string, unknown>
 ): Promise<UserSettingsRow> {
   const settings = toJsonValue(data.settings);

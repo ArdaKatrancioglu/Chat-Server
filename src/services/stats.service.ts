@@ -8,7 +8,7 @@ type GenericStatsRow = UserGenericStats & RowDataPacket;
 type PlayStatsRow = UserPlayStats & RowDataPacket;
 
 const genericStatsColumns = ["created_at", "last_online", "xp"];
-const playStatsColumns = [
+export const playStatsColumns = [
   "kills",
   "deaths",
   "matches_played",
@@ -24,7 +24,7 @@ const playStatsColumns = [
   "playtime_seconds"
 ];
 
-async function rowExists(tableName: string, userId: number): Promise<boolean> {
+async function rowExists(tableName: string, userId: string): Promise<boolean> {
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT 1 FROM \`${tableName}\` WHERE \`user_id\` = ? LIMIT 1`,
     [userId]
@@ -44,7 +44,7 @@ function updateSql(tableName: string, columns: string[]): string {
   return `UPDATE \`${tableName}\` SET ${assignments} WHERE \`user_id\` = ?`;
 }
 
-export async function getGenericStats(userId: number): Promise<UserGenericStats> {
+export async function getGenericStats(userId: string): Promise<UserGenericStats> {
   const [rows] = await pool.execute<GenericStatsRow[]>(
     "SELECT * FROM `USER_GENERIC_STATS` WHERE `user_id` = ? LIMIT 1",
     [userId]
@@ -58,7 +58,7 @@ export async function getGenericStats(userId: number): Promise<UserGenericStats>
 }
 
 export async function putGenericStats(
-  userId: number,
+  userId: string,
   data: Record<string, unknown>
 ): Promise<UserGenericStats> {
   const values = genericStatsColumns.map((column) => toSqlValue(data[column]));
@@ -72,7 +72,7 @@ export async function putGenericStats(
   return getGenericStats(userId);
 }
 
-export async function getPlayStats(userId: number): Promise<UserPlayStats> {
+export async function getPlayStats(userId: string): Promise<UserPlayStats> {
   const [rows] = await pool.execute<PlayStatsRow[]>(
     "SELECT * FROM `USER_PLAY_STATS` WHERE `user_id` = ? LIMIT 1",
     [userId]
@@ -85,7 +85,7 @@ export async function getPlayStats(userId: number): Promise<UserPlayStats> {
   return rows[0];
 }
 
-export async function putPlayStats(userId: number, data: Record<string, unknown>): Promise<UserPlayStats> {
+export async function putPlayStats(userId: string, data: Record<string, unknown>): Promise<UserPlayStats> {
   const values = playStatsColumns.map((column) => toSqlValue(data[column]));
 
   if (await rowExists("USER_PLAY_STATS", userId)) {
@@ -97,7 +97,7 @@ export async function putPlayStats(userId: number, data: Record<string, unknown>
   return getPlayStats(userId);
 }
 
-export async function patchPlayStats(userId: number, data: Record<string, unknown>): Promise<UserPlayStats> {
+export async function patchPlayStats(userId: string, data: Record<string, unknown>): Promise<UserPlayStats> {
   const columns = playStatsColumns.filter((column) => Object.prototype.hasOwnProperty.call(data, column));
 
   if (columns.length === 0) {

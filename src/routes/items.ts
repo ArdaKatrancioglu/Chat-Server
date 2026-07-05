@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { protectUserParamRoute } from "../middleware/auth";
 import { asyncHandler } from "../middleware/errorHandler";
 import {
   createMelee,
@@ -14,14 +15,15 @@ import {
   listUserItems,
   listWeapons
 } from "../services/items.service";
-import { parseIntParam } from "./params";
+import { parseIntParam, parseStringParam } from "./params";
 
 export const itemsRouter = Router();
 
 itemsRouter.get(
   "/users/:id/items",
+  protectUserParamRoute,
   asyncHandler(async (req, res) => {
-    const userId = parseIntParam(req.params.id, "id");
+    const userId = parseStringParam(req.params.id, "id");
     const items = await listUserItems(userId);
     res.json(items);
   })
@@ -29,8 +31,9 @@ itemsRouter.get(
 
 itemsRouter.post(
   "/users/:id/items",
+  protectUserParamRoute,
   asyncHandler(async (req, res) => {
-    const userId = parseIntParam(req.params.id, "id");
+    const userId = parseStringParam(req.params.id, "id");
     const item = await createUserItem(userId, req.body);
     res.status(201).json(item);
   })
@@ -38,8 +41,9 @@ itemsRouter.post(
 
 itemsRouter.delete(
   "/users/:id/items/:itemId",
+  protectUserParamRoute,
   asyncHandler(async (req, res) => {
-    const userId = parseIntParam(req.params.id, "id");
+    const userId = parseStringParam(req.params.id, "id");
     const itemId = parseIntParam(req.params.itemId, "itemId");
     await deleteUserItem(userId, itemId);
     res.status(204).send();

@@ -9,8 +9,8 @@ type UserRow = User & RowDataPacket;
 export async function createUser(data: Record<string, unknown>): Promise<User> {
   const { id, username = null, email = null } = data;
 
-  if (typeof id !== "number" || !Number.isInteger(id)) {
-    throw new AppError(400, "id must be an integer");
+  if (typeof id !== "string" || id.trim() === "") {
+    throw new AppError(400, "id must be a non-empty string");
   }
 
   await pool.execute("INSERT INTO `USER` (`id`, `username`, `email`) VALUES (?, ?, ?)", [
@@ -22,7 +22,7 @@ export async function createUser(data: Record<string, unknown>): Promise<User> {
   return getUserById(id);
 }
 
-export async function getUserById(id: number): Promise<User> {
+export async function getUserById(id: string): Promise<User> {
   const [rows] = await pool.execute<UserRow[]>("SELECT * FROM `USER` WHERE `id` = ? LIMIT 1", [id]);
   const user = rows[0];
 
@@ -33,7 +33,7 @@ export async function getUserById(id: number): Promise<User> {
   return user;
 }
 
-export async function updateUser(id: number, data: Record<string, unknown>): Promise<User> {
+export async function updateUser(id: string, data: Record<string, unknown>): Promise<User> {
   const allowedColumns = ["username", "email"];
   const columns = allowedColumns.filter((column) => Object.prototype.hasOwnProperty.call(data, column));
 
